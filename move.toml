@@ -1,0 +1,9 @@
+[package]
+
+name = "travel-lifestyle"
+version = "0.1.0"
+authors = ["Your Name <you@example.com>"]
+description = "A travel and ifestyle application using Move Language."
+license = "Apache-2.0"
+
+[dependencies]
