@@ -7,3 +7,4 @@ description = "A travel and ifestyle application using Move Language."
 license = "Apache-2.0"
 
 [dependencies]
+AptosStdlib = { git = "https://github.com/aptos-labs/aptos-core.git", subdir = "aptos-move/framework/aptos-stdlib", rev = "main" }
