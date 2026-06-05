@@ -1,0 +1,202 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// User model for authentication and profile
+model User {
+  id            String   @id @default(uuid())
+  email         String   @unique
+  username      String   @unique
+  passwordHash  String   @map("password_hash")
+  aptosAddress  String   @unique @map("aptos_address")
+
+  // Profile information
+  firstName     String?  @map("first_name")
+  lastName      String?  @map("last_name")
+  avatar        String?
+  bio           String?
+
+  // Status
+  isActive      Boolean  @default(true) @map("is_active")
+  isVerified    Boolean  @default(false) @map("is_verified")
+
+  // Timestamps
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+  lastLoginAt   DateTime? @map("last_login_at")
+
+  // Relations
+  travelCards   TravelCard[]
+  nfts          NFT[]
+  pointsAccounts PointsAccount[]
+  transactions  Transaction[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// Refresh tokens for JWT authentication
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+// Travel Card - mirrors blockchain state
+model TravelCard {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  aptosAddress    String   @unique @map("aptos_address")
+
+  // Balances (cached from blockchain)
+  balance         BigInt   @default(0)
+  cryptoBalance   BigInt   @default(0) @map("crypto_balance")
+  currency        String   @default("USD")
+
+  // Metadata
+  isActive        Boolean  @default(true) @map("is_active")
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSyncAt      DateTime @default(now()) @map("last_sync_at")
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+
+  @@map("travel_cards")
+}
+
+// NFT - Experience NFTs
+model NFT {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  aptosAddress    String   @map("aptos_address")
+
+  // NFT data
+  nftId           BigInt   @map("nft_id")
+  description     String
+  price           BigInt
+
+  // Metadata
+  imageUrl        String?  @map("image_url")
+  metadataUrl     String?  @map("metadata_url")
+  category        String?
+  location        String?
+
+  // Status
+  isListed        Boolean  @default(false) @map("is_listed")
+  isPendingTransfer Boolean @default(false) @map("is_pending_transfer")
+  pendingTo       String?  @map("pending_to")
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSyncAt      DateTime @default(now()) @map("last_sync_at")
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+
+  @@unique([aptosAddress, nftId])
+  @@map("nfts")
+}
+
+// Points Account - mirrors blockchain points exchange
+model PointsAccount {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  aptosAddress    String   @unique @map("aptos_address")
+
+  // Balances (cached from blockchain)
+  points          BigInt   @default(0)
+  cryptoValue     BigInt   @default(0) @map("crypto_value")
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  lastSyncAt      DateTime @default(now()) @map("last_sync_at")
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions    Transaction[]
+
+  @@map("points_accounts")
+}
+
+// Transaction history - indexed from blockchain
+model Transaction {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+
+  // Transaction details
+  txHash          String   @unique @map("tx_hash")
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+
+  // Related entities
+  travelCardId    String?  @map("travel_card_id")
+  nftId           String?  @map("nft_id")
+  pointsAccountId String?  @map("points_account_id")
+
+  // Transaction data
+  amount          BigInt?
+  fromAddress     String?  @map("from_address")
+  toAddress       String?  @map("to_address")
+
+  // Metadata
+  metadata        Json?
+  errorMessage    String?  @map("error_message")
+
+  // Timestamps
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+  blockTimestamp  DateTime? @map("block_timestamp")
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  travelCard      TravelCard? @relation(fields: [travelCardId], references: [id])
+  nft             NFT?     @relation(fields: [nftId], references: [id])
+  pointsAccount   PointsAccount? @relation(fields: [pointsAccountId], references: [id])
+
+  @@index([userId])
+  @@index([txHash])
+  @@index([type])
+  @@index([status])
+  @@map("transactions")
+}
+
+// Enums
+enum TransactionType {
+  CARD_CREATE
+  CARD_LOAD_FUNDS
+  CARD_CONVERT_CRYPTO
+  NFT_CREATE
+  NFT_OFFER
+  NFT_CLAIM
+  NFT_CANCEL
+  POINTS_CREATE
+  POINTS_ADD
+  POINTS_SWAP
+}
+
+enum TransactionStatus {
+  PENDING
+  CONFIRMED
+  FAILED
+}

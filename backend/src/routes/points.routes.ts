@@ -1,0 +1,459 @@
+import { Router } from 'express';
+import { aptosService } from '../services/aptos.service';
+import { prisma } from '../config/database';
+import { authenticate } from '../middleware/auth.middleware';
+import { validate, schemas } from '../middleware/validation.middleware';
+import { asyncHandler } from '../middleware/error.middleware';
+import { cache } from '../config/redis';
+
+const router = Router();
+
+// All routes require authentication
+router.use(authenticate);
+
+/**
+ * POST /api/v1/points
+ * Create a new points exchange account
+ */
+router.post(
+  '/',
+  validate(schemas.createPointsExchange),
+  asyncHandler(async (req, res) => {
+    const { points, cryptoValue } = req.body;
+    const { userId, aptosAddress } = req.user!;
+
+    // Check if user already has a points account
+    const existingAccount = await prisma.pointsAccount.findUnique({
+      where: { aptosAddress },
+    });
+
+    if (existingAccount) {
+      return res.status(400).json({
+        success: false,
+        error: 'Points account already exists',
+      });
+    }
+
+    // Create account in database
+    const account = await prisma.pointsAccount.create({
+      data: {
+        userId,
+        aptosAddress,
+        points: BigInt(points),
+        cryptoValue: BigInt(cryptoValue),
+      },
+    });
+
+    // Create transaction record
+    await prisma.transaction.create({
+      data: {
+        userId,
+        type: 'POINTS_CREATE',
+        status: 'PENDING',
+        pointsAccountId: account.id,
+        amount: BigInt(points),
+        metadata: { cryptoValue },
+        txHash: 'pending',
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        account: {
+          ...account,
+          points: account.points.toString(),
+          cryptoValue: account.cryptoValue.toString(),
+        },
+        message: 'Points account created successfully.',
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/v1/points/my
+ * Get user's points account
+ */
+router.get(
+  '/my',
+  asyncHandler(async (req, res) => {
+    const { aptosAddress } = req.user!;
+
+    // Try cache first
+    const cacheKey = `points:${aptosAddress}`;
+    const cached = await cache.get(cacheKey);
+
+    if (cached) {
+      return res.json({
+        success: true,
+        data: cached,
+        cached: true,
+      });
+    }
+
+    // Get from database
+    const account = await prisma.pointsAccount.findUnique({
+      where: { aptosAddress },
+    });
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Points account not found',
+      });
+    }
+
+    // Sync with blockchain
+    try {
+      const points = await aptosService.getPointsBalance(aptosAddress);
+      const cryptoValue = await aptosService.getPointsCryptoValue(aptosAddress);
+
+      // Update database
+      await prisma.pointsAccount.update({
+        where: { id: account.id },
+        data: {
+          points: BigInt(points),
+          cryptoValue: BigInt(cryptoValue),
+          lastSyncAt: new Date(),
+        },
+      });
+
+      const result = {
+        ...account,
+        points: points.toString(),
+        cryptoValue: cryptoValue.toString(),
+      };
+
+      // Cache for 1 minute
+      await cache.set(cacheKey, result, 60);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      // Return database data if blockchain sync fails
+      res.json({
+        success: true,
+        data: {
+          ...account,
+          points: account.points.toString(),
+          cryptoValue: account.cryptoValue.toString(),
+        },
+        warning: 'Could not sync with blockchain, showing cached data',
+      });
+    }
+  })
+);
+
+/**
+ * POST /api/v1/points/add
+ * Add loyalty points to account
+ */
+router.post(
+  '/add',
+  validate(schemas.addPoints),
+  asyncHandler(async (req, res) => {
+    const { pointsToAdd } = req.body;
+    const { userId, aptosAddress } = req.user!;
+
+    const account = await prisma.pointsAccount.findUnique({
+      where: { aptosAddress },
+    });
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Points account not found',
+      });
+    }
+
+    // Create transaction record
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId,
+        type: 'POINTS_ADD',
+        status: 'PENDING',
+        pointsAccountId: account.id,
+        amount: BigInt(pointsToAdd),
+        txHash: 'pending',
+      },
+    });
+
+    // Clear cache
+    await cache.del(`points:${aptosAddress}`);
+
+    res.json({
+      success: true,
+      data: {
+        transactionId: transaction.id,
+        message: 'Points addition initiated. Transaction will be processed on blockchain.',
+      },
+    });
+  })
+);
+
+/**
+ * POST /api/v1/points/swap
+ * Swap loyalty points for cryptocurrency
+ */
+router.post(
+  '/swap',
+  validate(schemas.swapPoints),
+  asyncHandler(async (req, res) => {
+    const { pointsToSwap } = req.body;
+    const { userId, aptosAddress } = req.user!;
+
+    const account = await prisma.pointsAccount.findUnique({
+      where: { aptosAddress },
+    });
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Points account not found',
+      });
+    }
+
+    if (account.points < BigInt(pointsToSwap)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Insufficient points balance',
+      });
+    }
+
+    // Calculate crypto value (default rate: 100 points = 1 crypto)
+    const cryptoEarned = Math.floor(pointsToSwap / 100);
+
+    // Create transaction record
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId,
+        type: 'POINTS_SWAP',
+        status: 'PENDING',
+        pointsAccountId: account.id,
+        amount: BigInt(pointsToSwap),
+        metadata: {
+          pointsSwapped: pointsToSwap,
+          cryptoEarned,
+          exchangeRate: 100,
+        },
+        txHash: 'pending',
+      },
+    });
+
+    // Clear cache
+    await cache.del(`points:${aptosAddress}`);
+
+    res.json({
+      success: true,
+      data: {
+        transactionId: transaction.id,
+        pointsSwapped: pointsToSwap,
+        cryptoEarned,
+        exchangeRate: 100,
+        message: 'Points swap initiated. Transaction will be processed on blockchain.',
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/v1/points/exchange-rate
+ * Get current exchange rate
+ */
+router.get(
+  '/exchange-rate',
+  asyncHandler(async (req, res) => {
+    const { rateOwner } = req.query;
+
+    // Try cache first
+    const cacheKey = `exchange-rate:${rateOwner || 'default'}`;
+    const cached = await cache.get(cacheKey);
+
+    if (cached) {
+      return res.json({
+        success: true,
+        data: cached,
+        cached: true,
+      });
+    }
+
+    try {
+      let rate;
+      if (rateOwner) {
+        rate = await aptosService.getPointsBalance(rateOwner as string);
+      } else {
+        // Default rate
+        rate = 100; // 100 points = 1 crypto unit
+      }
+
+      const result = {
+        pointsPerCrypto: rate,
+        description: `${rate} points = 1 crypto unit`,
+      };
+
+      // Cache for 5 minutes
+      await cache.set(cacheKey, result, 300);
+
+      res.json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      // Return default rate if blockchain query fails
+      res.json({
+        success: true,
+        data: {
+          pointsPerCrypto: 100,
+          description: '100 points = 1 crypto unit (default rate)',
+        },
+      });
+    }
+  })
+);
+
+/**
+ * GET /api/v1/points/history
+ * Get points transaction history
+ */
+router.get(
+  '/history',
+  asyncHandler(async (req, res) => {
+    const { page = 1, limit = 20, type } = req.query;
+    const { userId } = req.user!;
+
+    const pageNum = parseInt(page as string, 10);
+    const limitNum = parseInt(limit as string, 10);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build filters
+    const where: any = {
+      userId,
+      type: {
+        in: ['POINTS_CREATE', 'POINTS_ADD', 'POINTS_SWAP'],
+      },
+    };
+
+    if (type) {
+      where.type = type;
+    }
+
+    const [transactions, total] = await Promise.all([
+      prisma.transaction.findMany({
+        where,
+        skip,
+        take: limitNum,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          txHash: true,
+          type: true,
+          status: true,
+          amount: true,
+          metadata: true,
+          createdAt: true,
+          blockTimestamp: true,
+        },
+      }),
+      prisma.transaction.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        transactions: transactions.map((tx) => ({
+          ...tx,
+          amount: tx.amount?.toString(),
+        })),
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum),
+        },
+      },
+    });
+  })
+);
+
+/**
+ * GET /api/v1/points/stats
+ * Get points account statistics
+ */
+router.get(
+  '/stats',
+  asyncHandler(async (req, res) => {
+    const { userId, aptosAddress } = req.user!;
+
+    // Try cache first
+    const cacheKey = `points-stats:${aptosAddress}`;
+    const cached = await cache.get(cacheKey);
+
+    if (cached) {
+      return res.json({
+        success: true,
+        data: cached,
+        cached: true,
+      });
+    }
+
+    const account = await prisma.pointsAccount.findUnique({
+      where: { aptosAddress },
+    });
+
+    if (!account) {
+      return res.status(404).json({
+        success: false,
+        error: 'Points account not found',
+      });
+    }
+
+    // Get statistics
+    const [totalAdded, totalSwapped, transactionCount] = await Promise.all([
+      prisma.transaction.aggregate({
+        where: {
+          userId,
+          type: 'POINTS_ADD',
+          status: 'CONFIRMED',
+        },
+        _sum: { amount: true },
+      }),
+      prisma.transaction.aggregate({
+        where: {
+          userId,
+          type: 'POINTS_SWAP',
+          status: 'CONFIRMED',
+        },
+        _sum: { amount: true },
+      }),
+      prisma.transaction.count({
+        where: {
+          userId,
+          type: { in: ['POINTS_ADD', 'POINTS_SWAP'] },
+        },
+      }),
+    ]);
+
+    const result = {
+      currentPoints: account.points.toString(),
+      currentCryptoValue: account.cryptoValue.toString(),
+      totalPointsAdded: totalAdded._sum.amount?.toString() || '0',
+      totalPointsSwapped: totalSwapped._sum.amount?.toString() || '0',
+      transactionCount,
+      accountCreatedAt: account.createdAt,
+      lastSyncAt: account.lastSyncAt,
+    };
+
+    // Cache for 2 minutes
+    await cache.set(cacheKey, result, 120);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  })
+);
+
+export default router;
