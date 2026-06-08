@@ -164,9 +164,9 @@
 ```
 travel-lifestyle/
 ├── sources/                           # Move Smart Contracts
-│   ├── digital_travel_card.move       # Multi-currency wallet (215 lines)
-│   ├── experience_nfts.move           # NFT marketplace (427 lines)
-│   └── travel_points_exchange.move    # Points system (343 lines)
+│   ├── digital_travel_card.move       # Multi-currency wallet 
+│   ├── experience_nfts.move           # NFT marketplace 
+│   └── travel_points_exchange.move    # Points system 
 │
 ├── backend/                           # Node.js Backend API
 │   ├── src/
