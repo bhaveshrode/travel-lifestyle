@@ -1,4 +1,4 @@
-# CLAUDE.md - Move Language Coding Standards
+# Move Language Coding Standards
 
 ## Project: Travel & Lifestyle Blockchain Application
 
