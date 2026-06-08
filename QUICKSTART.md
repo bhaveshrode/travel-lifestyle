@@ -308,8 +308,3 @@ sudo systemctl stop redis      # Linux
 - [ ] Can register user
 - [ ] Can login
 
----
-
-**Happy Coding! 🎉**
-
-Your Travel & Lifestyle backend is ready to serve requests!
