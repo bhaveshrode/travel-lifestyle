@@ -618,12 +618,14 @@ Before deploying any module:
 
 ## Maintenance
 
-This CLAUDE.md file should be updated when:
+This MOVE.md file should be updated when:
 - New modules are added
 - Architectural patterns change
 - Security requirements evolve
 - Move language version updates
 
 **Last Updated**: 2026-06-04
+
 **Move Version**: Compatible with Move 1.0+
+
 **Target Platform**: Aptos / Sui (adjust as needed)
