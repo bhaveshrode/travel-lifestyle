@@ -445,5 +445,3 @@ docker-compose ps        # Check status
 │    (Cache)    │
 └───────────────┘
 ```
-
-Happy coding! 🚀
