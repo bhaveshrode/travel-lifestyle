@@ -1,6 +1,6 @@
 # Travel & Lifestyle Backend API
 
-Backend API server for the Travel & Lifestyle blockchain application built with Node.js, Express, TypeScript, Prisma, and Aptos SDK.
+Backend API server for the Travel & Lifestyle blockchain application built with Node.js, Express, TypeScript, Prisma, and ethers.js.
 
 ## Features
 
@@ -12,14 +12,14 @@ Backend API server for the Travel & Lifestyle blockchain application built with 
 - ⚡ **Caching**: Redis for performance optimization
 - 🔒 **Security**: Helmet, CORS, rate limiting
 - 📝 **Logging**: Winston logger with file rotation
-- 🚀 **Blockchain**: Aptos blockchain integration
+- 🚀 **Blockchain**: Ethereum blockchain integration
 
 ## Prerequisites
 
 - Node.js 18+ and npm/yarn
 - PostgreSQL 14+
 - Redis 6+
-- Aptos CLI (for contract deployment)
+- Hardhat (for smart contract deployment)
 
 ## Installation
 
@@ -47,9 +47,10 @@ DATABASE_URL="postgresql://user:password@localhost:5432/travel_lifestyle"
 # JWT Secret (generate a secure random string)
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
-# Aptos Configuration
-APTOS_MODULE_ADDRESS=0x... # Your deployed module address
-ADMIN_PRIVATE_KEY=0x...    # Admin account private key (keep secure!)
+# Ethereum Configuration
+ETHEREUM_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY  # Or your preferred RPC
+CONTRACT_ADDRESS=0x...        # Your deployed contract address
+ADMIN_PRIVATE_KEY=0x...       # Admin account private key (keep secure!)
 
 # Redis (if using non-default settings)
 REDIS_HOST=localhost
@@ -71,15 +72,26 @@ npm run db:studio
 
 ### 4. Deploy Smart Contracts
 
-Before running the backend, ensure the Move smart contracts are deployed to Aptos:
+Before running the backend, ensure the Solidity smart contracts are deployed to Ethereum:
 
 ```bash
 # From project root
-aptos move compile
-aptos move publish --named-addresses travel_lifestyle=<YOUR_ADDRESS>
+cd ../contracts  # or wherever your Solidity contracts are located
+
+# Install Hardhat dependencies
+npm install
+
+# Compile contracts
+npx hardhat compile
+
+# Deploy to Sepolia testnet (or your preferred network)
+npx hardhat run scripts/deploy.ts --network sepolia
+
+# Verify contract on Etherscan (optional)
+npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
 ```
 
-Update `APTOS_MODULE_ADDRESS` in `.env` with your deployed address.
+Update `CONTRACT_ADDRESS` in `.env` with your deployed address.
 
 ## Running the Server
 
@@ -120,7 +132,7 @@ Content-Type: application/json
   "email": "user@example.com",
   "username": "johndoe",
   "password": "securePassword123",
-  "aptosAddress": "0x1234..."
+  "ethereumAddress": "0x1234..."
 }
 ```
 
@@ -133,7 +145,7 @@ Content-Type: application/json
       "id": "uuid",
       "email": "user@example.com",
       "username": "johndoe",
-      "aptosAddress": "0x1234..."
+      "ethereumAddress": "0x1234..."
     },
     "accessToken": "eyJhbGciOiJIUzI1NiIs...",
     "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
@@ -265,7 +277,7 @@ backend/
 │   │   └── cards.routes.ts
 │   ├── services/         # Business logic
 │   │   ├── auth.service.ts
-│   │   └── aptos.service.ts
+│   │   └── ethereum.service.ts
 │   └── server.ts         # Express server entry point
 ├── prisma/
 │   └── schema.prisma     # Database schema
@@ -281,7 +293,7 @@ backend/
 
 ### Users
 - User accounts with authentication
-- Linked to Aptos addresses
+- Linked to Ethereum addresses
 
 ### TravelCard
 - Multi-currency digital wallet
@@ -412,7 +424,8 @@ Ensure these are set in production:
 - `DATABASE_URL` - Production PostgreSQL connection
 - `REDIS_HOST` / `REDIS_PASSWORD` - Production Redis
 - `JWT_SECRET` - Strong random secret (generate new one!)
-- `APTOS_MODULE_ADDRESS` - Mainnet contract address
+- `ETHEREUM_RPC_URL` - Mainnet RPC endpoint (Infura/Alchemy/etc)
+- `CONTRACT_ADDRESS` - Mainnet contract address
 - `CORS_ORIGIN` - Production frontend URL
 
 ## Troubleshooting

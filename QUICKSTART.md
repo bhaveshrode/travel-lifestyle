@@ -25,8 +25,9 @@ cp .env.example .env
 # 3. Edit .env - Set these REQUIRED values:
 nano .env
 # - JWT_SECRET (generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
-# - APTOS_MODULE_ADDRESS (your deployed contract address)
-# - ADMIN_PRIVATE_KEY (your Aptos admin private key)
+# - ETHEREUM_RPC_URL (your Ethereum RPC endpoint)
+# - CONTRACT_ADDRESS (your deployed contract address)
+# - ADMIN_PRIVATE_KEY (your Ethereum admin private key)
 
 # 4. Start everything (PostgreSQL + Redis + Backend)
 docker-compose up -d
@@ -89,9 +90,10 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/travel_lifestyle"
 # JWT Secret (GENERATE A NEW ONE!)
 JWT_SECRET=REPLACE_WITH_OUTPUT_FROM_COMMAND_BELOW
 
-# Aptos (from your deployed contracts)
-APTOS_MODULE_ADDRESS=0x...  # YOUR MODULE ADDRESS
-ADMIN_PRIVATE_KEY=0x...     # YOUR PRIVATE KEY
+# Ethereum (from your deployed contracts)
+ETHEREUM_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
+CONTRACT_ADDRESS=0x...  # YOUR CONTRACT ADDRESS
+ADMIN_PRIVATE_KEY=0x... # YOUR PRIVATE KEY
 ```
 
 **Generate JWT Secret:**
@@ -103,25 +105,56 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 ## Deploy Smart Contracts First
 
-Before running backend, deploy Move contracts:
+Before running backend, deploy Solidity contracts:
 
 ```bash
 # From project root
 cd ..
 
-# Install Aptos CLI (first time only)
-# Download from: https://github.com/aptos-labs/aptos-core/releases
+# Navigate to contracts directory (create if needed)
+mkdir -p contracts
+cd contracts
 
-# Initialize account
-aptos init --network testnet
+# Install Hardhat (first time only)
+npm install --save-dev hardhat @nomicfoundation/hardhat-toolbox
+
+# Initialize Hardhat project (if not already initialized)
+npx hardhat init
 
 # Compile contracts
-aptos move compile
+npx hardhat compile
 
-# Deploy to testnet
-aptos move publish --named-addresses travel_lifestyle=<YOUR_ADDRESS>
+# Deploy to Sepolia testnet
+npx hardhat run scripts/deploy.ts --network sepolia
 
-# Copy the module address to .env
+# Verify contract on Etherscan (optional)
+npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
+
+# Copy the contract address to backend/.env
+```
+
+**Configure Hardhat Networks:**
+
+Edit `hardhat.config.ts`:
+
+```typescript
+import { HardhatUserConfig } from "hardhat/config";
+import "@nomicfoundation/hardhat-toolbox";
+
+const config: HardhatUserConfig = {
+  solidity: "0.8.20",
+  networks: {
+    sepolia: {
+      url: process.env.ETHEREUM_RPC_URL || "",
+      accounts: process.env.ADMIN_PRIVATE_KEY ? [process.env.ADMIN_PRIVATE_KEY] : []
+    }
+  },
+  etherscan: {
+    apiKey: process.env.ETHERSCAN_API_KEY
+  }
+};
+
+export default config;
 ```
 
 ---
@@ -139,7 +172,7 @@ curl -X POST http://localhost:3001/api/v1/auth/register \
     "email": "test@example.com",
     "username": "testuser",
     "password": "password123",
-    "aptosAddress": "0x123..."
+    "ethereumAddress": "0x123..."
   }'
 
 # Login
@@ -194,7 +227,7 @@ npm install
 - ✅ **Travel Cards** - Create, load funds, convert to crypto
 - ✅ **Database** - PostgreSQL with Prisma ORM
 - ✅ **Caching** - Redis for performance
-- ✅ **Blockchain** - Aptos integration ready
+- ✅ **Blockchain** - Ethereum integration ready
 - ✅ **Security** - Rate limiting, CORS, Helmet
 - ✅ **Logging** - Winston with file rotation
 - ✅ **Docker** - Ready for deployment
@@ -283,7 +316,7 @@ sudo systemctl stop redis      # Linux
 - **Full API Docs:** `backend/README.md`
 - **Setup Guide:** `backend/SETUP_GUIDE.md`
 - **Backend Summary:** `BACKEND_SUMMARY.md`
-- **Move Standards:** `CLAUDE.md`
+- **Solidity Standards:** `CLAUDE.md`
 
 ---
 
@@ -302,9 +335,8 @@ sudo systemctl stop redis      # Linux
 - [ ] Dependencies installed (`npm install`)
 - [ ] `.env` configured
 - [ ] Database migrated (`npm run db:migrate`)
-- [ ] Smart contracts deployed
+- [ ] Smart contracts deployed (Hardhat)
 - [ ] Server started (`npm run dev`)
 - [ ] Health check passes (`curl http://localhost:3001/health`)
 - [ ] Can register user
 - [ ] Can login
-
