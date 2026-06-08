@@ -230,7 +230,7 @@ travel-lifestyle/
 │   ├── tailwind.config.js             # TailwindCSS config
 │   └── README.md                      # Frontend documentation
 │
-├── CLAUDE.md                          # Move coding standards
+├── MOVE.md                            # Move coding standards
 ├── BACKEND_SUMMARY.md                 # Backend overview
 ├── COMPLETE_API_SUMMARY.md            # Complete API guide
 ├── QUICKSTART.md                      # 5-minute quickstart
