@@ -370,12 +370,12 @@ curl -X POST http://localhost:3001/api/v1/auth/login \
 
 ## 📊 Performance Optimizations
 
-✅ Redis caching for blockchain data
-✅ Database connection pooling (Prisma)
-✅ Indexed database queries
-✅ Rate limiting to prevent abuse
-✅ Gzip compression (can be added)
-✅ Async/await for non-blocking operations
+- ✅ Redis caching for blockchain data
+- ✅ Database connection pooling (Prisma)
+- ✅ Indexed database queries
+- ✅ Rate limiting to prevent abuse
+- ✅ Gzip compression (can be added)
+- ✅ Async/await for non-blocking operations
 
 ---
 
