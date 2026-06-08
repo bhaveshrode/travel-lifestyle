@@ -401,7 +401,7 @@ GET    /api/v1/transactions/export
 
 ## 📚 Documentation Index
 
-1. **`CLAUDE.md`** - Move coding standards and conventions
+1. **`MOVE.md`** - Move coding standards and conventions
 2. **`README.md`** - Main project overview
 3. **`QUICKSTART.md`** - 5-minute quick start guide
 4. **`BACKEND_SUMMARY.md`** - Backend architecture overview
@@ -580,52 +580,3 @@ GET    /api/v1/transactions/export
 - [x] Project overview
 - [x] Complete summary
 
----
-
-## 🎉 Conclusion
-
-**Congratulations!** You now have a **complete, production-ready, full-stack blockchain application** with:
-
-✅ **3 Move smart contracts** on Aptos blockchain
-✅ **41 REST API endpoints** with Node.js/Express/TypeScript
-✅ **10 responsive pages** with React/TypeScript/TailwindCSS
-✅ **Complete user flows** from registration to all features
-✅ **Professional UI/UX** with gradients, icons, and animations
-✅ **Robust security** with JWT, validation, and rate limiting
-✅ **High performance** with Redis caching and optimization
-✅ **Comprehensive documentation** with 11 detailed guides
-
-### **What You Built**
-A sophisticated travel and lifestyle platform where users can:
-- Manage digital travel cards with crypto conversion
-- Create and trade travel experience NFTs
-- Earn and exchange loyalty points for crypto
-- Track all transactions with analytics
-- Manage their profile and account
-
-### **Technology Mastery**
-You've successfully integrated:
-- Move blockchain smart contracts
-- Node.js backend with TypeScript
-- React frontend with modern tooling
-- PostgreSQL database with Prisma
-- Redis caching layer
-- JWT authentication system
-- RESTful API design
-- Responsive UI/UX
-
-### **Next Steps**
-1. ✅ Start the backend: `cd backend && npm run dev`
-2. ✅ Start the frontend: `cd frontend && npm run dev`
-3. ✅ Test all features
-4. 🚀 Deploy to production
-5. 📱 Build mobile app
-6. 🧪 Add automated tests
-7. 🔌 Integrate real wallets
-8. 🌐 Deploy smart contracts to Aptos testnet
-
----
-
-**Your Travel & Lifestyle blockchain application is complete and ready to revolutionize how people manage their travel experiences!** 🌍✈️💎
-
-**Happy Building!** 🚀
