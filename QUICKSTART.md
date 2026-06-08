@@ -190,14 +190,14 @@ npm install
 
 ## What You Get
 
-✅ **Authentication** - Register, login, JWT tokens
-✅ **Travel Cards** - Create, load funds, convert to crypto
-✅ **Database** - PostgreSQL with Prisma ORM
-✅ **Caching** - Redis for performance
-✅ **Blockchain** - Aptos integration ready
-✅ **Security** - Rate limiting, CORS, Helmet
-✅ **Logging** - Winston with file rotation
-✅ **Docker** - Ready for deployment
+- ✅ **Authentication** - Register, login, JWT tokens
+- ✅ **Travel Cards** - Create, load funds, convert to crypto
+- ✅ **Database** - PostgreSQL with Prisma ORM
+- ✅ **Caching** - Redis for performance
+- ✅ **Blockchain** - Aptos integration ready
+- ✅ **Security** - Rate limiting, CORS, Helmet
+- ✅ **Logging** - Winston with file rotation
+- ✅ **Docker** - Ready for deployment
 
 ---
 
