@@ -47,3 +47,8 @@ frontend/.vite/
 # Temporary files
 tmp/
 temp/
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/

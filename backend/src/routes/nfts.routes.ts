@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import ethereumService from '../services/ethereum.service';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate, schemas } from '../middleware/validation.middleware';
@@ -21,18 +22,29 @@ router.post(
     const { description, price, imageUrl, category, location } = req.body;
     const { userId, ethereumAddress } = req.user!;
 
-    // Check if collection is initialized
-    const existingNFTs = await prisma.nFT.findFirst({
-      where: { ethereumAddress },
-    });
-
-    // Get next NFT ID
     const nftCount = await prisma.nFT.count({
       where: { ethereumAddress },
     });
-    const nextNftId = nftCount;
+    let nextNftId = nftCount;
+    let txHash = `pending-nft-${userId}-${Date.now()}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
 
-    // Create NFT in database
+    try {
+      const minted = await ethereumService.mintNFT(
+        ethereumAddress,
+        description,
+        category || '',
+        location || '',
+        String(price),
+        imageUrl || ''
+      );
+      txHash = minted.txHash;
+      nextNftId = Number(minted.tokenId);
+      status = 'CONFIRMED';
+    } catch (error) {
+      // Keep a unique pending hash if the chain is unavailable
+    }
+
     const nft = await prisma.nFT.create({
       data: {
         userId,
@@ -46,12 +58,11 @@ router.post(
       },
     });
 
-    // Create transaction record
     await prisma.transaction.create({
       data: {
         userId,
         type: 'NFT_CREATE',
-        status: 'PENDING',
+        status,
         nftId: nft.id,
         amount: BigInt(price),
         metadata: {
@@ -60,7 +71,7 @@ router.post(
           category,
           location,
         },
-        txHash: 'pending',
+        txHash,
       },
     });
 
@@ -244,12 +255,24 @@ router.post(
       },
     });
 
-    // Create transaction record
+    let txHash = `pending-offer-${nft.id}-${Date.now()}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    try {
+      txHash = await ethereumService.offerNFTTransfer(
+        nft.nftId.toString(),
+        ethereumAddress,
+        recipientAddress
+      );
+      status = 'CONFIRMED';
+    } catch (error) {
+      // Keep pending if the chain is unavailable
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'NFT_OFFER',
-        status: 'PENDING',
+        status,
         nftId: nft.id,
         fromAddress: ethereumAddress,
         toAddress: recipientAddress,
@@ -257,7 +280,7 @@ router.post(
           nftId: nft.nftId.toString(),
           description: nft.description,
         },
-        txHash: 'pending',
+        txHash,
       },
     });
 
@@ -303,12 +326,20 @@ router.post(
       });
     }
 
-    // Create transaction record
+    let txHash = `pending-claim-${nft.id}-${Date.now()}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    try {
+      txHash = await ethereumService.claimNFTTransfer(nft.nftId.toString(), ethereumAddress);
+      status = 'CONFIRMED';
+    } catch (error) {
+      // Keep pending if the chain is unavailable
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'NFT_CLAIM',
-        status: 'PENDING',
+        status,
         nftId: nft.id,
         fromAddress,
         toAddress: ethereumAddress,
@@ -316,7 +347,7 @@ router.post(
           nftId: nft.nftId.toString(),
           description: nft.description,
         },
-        txHash: 'pending',
+        txHash,
       },
     });
 
@@ -427,6 +458,14 @@ router.put(
         success: false,
         error: 'Cannot list NFT with pending transfer',
       });
+    }
+
+    if (isListed) {
+      try {
+        await ethereumService.listNFT(nft.nftId.toString(), nft.price.toString());
+      } catch (error) {
+        // Listing remains in the database if the chain is unavailable
+      }
     }
 
     await prisma.nFT.update({

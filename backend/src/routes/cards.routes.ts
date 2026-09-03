@@ -34,7 +34,6 @@ router.post(
       });
     }
 
-    // Create card in database
     const card = await prisma.travelCard.create({
       data: {
         userId,
@@ -44,16 +43,28 @@ router.post(
       },
     });
 
-    // Create transaction record
+    let txHash = `pending-${card.id}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    try {
+      txHash = await ethereumService.createTravelCard(
+        ethereumAddress,
+        currency,
+        String(initialBalance)
+      );
+      status = 'CONFIRMED';
+    } catch (error) {
+      // Keep a unique pending hash if the chain is unavailable
+    }
+
     await prisma.transaction.create({
       data: {
         userId,
         type: 'CARD_CREATE',
-        status: 'PENDING',
+        status,
         travelCardId: card.id,
         amount: BigInt(initialBalance),
         metadata: { currency },
-        txHash: 'pending',
+        txHash,
       },
     });
 
@@ -169,15 +180,27 @@ router.post(
       });
     }
 
-    // Create transaction record
+    let txHash = `pending-load-${card.id}-${Date.now()}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    try {
+      txHash = await ethereumService.loadFunds(ethereumAddress, String(amount));
+      status = 'CONFIRMED';
+      await prisma.travelCard.update({
+        where: { id: card.id },
+        data: { balance: card.balance + BigInt(amount), lastSyncAt: new Date() },
+      });
+    } catch (error) {
+      // Keep pending if the chain is unavailable
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'CARD_LOAD_FUNDS',
-        status: 'PENDING',
+        status,
         travelCardId: card.id,
         amount: BigInt(amount),
-        txHash: 'pending',
+        txHash,
       },
     });
 
@@ -223,15 +246,32 @@ router.post(
       });
     }
 
-    // Create transaction record
+    let txHash = `pending-convert-${card.id}-${Date.now()}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    try {
+      txHash = await ethereumService.convertToCrypto(ethereumAddress, String(amount));
+      status = 'CONFIRMED';
+      const cryptoAmount = BigInt(amount) * BigInt(10);
+      await prisma.travelCard.update({
+        where: { id: card.id },
+        data: {
+          balance: card.balance - BigInt(amount),
+          cryptoBalance: card.cryptoBalance + cryptoAmount,
+          lastSyncAt: new Date(),
+        },
+      });
+    } catch (error) {
+      // Keep pending if the chain is unavailable
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'CARD_CONVERT_CRYPTO',
-        status: 'PENDING',
+        status,
         travelCardId: card.id,
         amount: BigInt(amount),
-        txHash: 'pending',
+        txHash,
       },
     });
 

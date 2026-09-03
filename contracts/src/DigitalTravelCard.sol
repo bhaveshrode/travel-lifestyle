@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title DigitalTravelCard
@@ -26,6 +26,7 @@ contract DigitalTravelCard is Ownable, ReentrancyGuard, Pausable {
     error CardNotFound();
     error InsufficientBalance();
     error InvalidAmount();
+    error InvalidAddress();
     error InvalidCurrency();
     error ConversionRateTooLow();
 
@@ -59,8 +60,7 @@ contract DigitalTravelCard is Ownable, ReentrancyGuard, Pausable {
 
     // ============ Constructor ============
 
-    constructor() {
-        // Initialize supported currencies
+    constructor() Ownable(msg.sender) {
         supportedCurrencies["USD"] = true;
         supportedCurrencies["EUR"] = true;
         supportedCurrencies["GBP"] = true;
@@ -81,6 +81,11 @@ contract DigitalTravelCard is Ownable, ReentrancyGuard, Pausable {
 
     modifier validCurrency(string memory currency) {
         if (!supportedCurrencies[currency]) revert InvalidCurrency();
+        _;
+    }
+
+    modifier validUser(address user) {
+        if (user == address(0)) revert InvalidAddress();
         _;
     }
 
@@ -162,6 +167,82 @@ contract DigitalTravelCard is Ownable, ReentrancyGuard, Pausable {
         card.lastUpdated = block.timestamp;
 
         emit CryptoConverted(msg.sender, amount, cryptoAmount);
+    }
+
+    /**
+     * @notice Create a travel card for a user (owner only)
+     */
+    function createCardFor(
+        address user,
+        string memory currency,
+        uint256 initialBalance
+    ) external onlyOwner validUser(user) validCurrency(currency) validAmount(initialBalance) whenNotPaused {
+        if (hasCard[user]) revert CardAlreadyExists();
+
+        cards[user] = TravelCard({
+            balance: initialBalance,
+            cryptoBalance: 0,
+            currency: currency,
+            isActive: true,
+            createdAt: block.timestamp,
+            lastUpdated: block.timestamp
+        });
+
+        hasCard[user] = true;
+        totalCards++;
+
+        emit CardCreated(user, currency, initialBalance);
+    }
+
+    /**
+     * @notice Load funds for a user (owner only)
+     */
+    function loadFundsFor(address user, uint256 amount)
+        external
+        onlyOwner
+        validUser(user)
+        validAmount(amount)
+        whenNotPaused
+    {
+        if (!hasCard[user]) revert CardNotFound();
+
+        TravelCard storage card = cards[user];
+        uint256 newBalance = card.balance + amount;
+        if (newBalance < card.balance) revert InvalidAmount();
+
+        card.balance = newBalance;
+        card.lastUpdated = block.timestamp;
+
+        emit FundsLoaded(user, amount);
+    }
+
+    /**
+     * @notice Convert fiat to crypto for a user (owner only)
+     */
+    function convertToCryptoFor(address user, uint256 amount)
+        external
+        onlyOwner
+        validUser(user)
+        validAmount(amount)
+        nonReentrant
+        whenNotPaused
+    {
+        if (!hasCard[user]) revert CardNotFound();
+
+        TravelCard storage card = cards[user];
+        if (card.balance < amount) revert InsufficientBalance();
+
+        uint256 cryptoAmount = (amount * conversionRate) / 1e18;
+        if (cryptoAmount == 0) revert ConversionRateTooLow();
+
+        uint256 newCryptoBalance = card.cryptoBalance + cryptoAmount;
+        if (newCryptoBalance < card.cryptoBalance) revert InvalidAmount();
+
+        card.balance -= amount;
+        card.cryptoBalance = newCryptoBalance;
+        card.lastUpdated = block.timestamp;
+
+        emit CryptoConverted(user, amount, cryptoAmount);
     }
 
     /**

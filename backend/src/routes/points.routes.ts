@@ -34,7 +34,6 @@ router.post(
       });
     }
 
-    // Create account in database
     const account = await prisma.pointsAccount.create({
       data: {
         userId,
@@ -44,16 +43,24 @@ router.post(
       },
     });
 
-    // Create transaction record
+    let txHash = `pending-points-${account.id}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    try {
+      txHash = await ethereumService.createPointsAccount(ethereumAddress, Number(points));
+      status = 'CONFIRMED';
+    } catch (error) {
+      // Keep pending if the chain is unavailable
+    }
+
     await prisma.transaction.create({
       data: {
         userId,
         type: 'POINTS_CREATE',
-        status: 'PENDING',
+        status,
         pointsAccountId: account.id,
         amount: BigInt(points),
         metadata: { cryptoValue },
-        txHash: 'pending',
+        txHash,
       },
     });
 
@@ -169,15 +176,27 @@ router.post(
       });
     }
 
-    // Create transaction record
+    let txHash = `pending-add-${account.id}-${Date.now()}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    try {
+      txHash = await ethereumService.addPoints(ethereumAddress, Number(pointsToAdd), 'api');
+      status = 'CONFIRMED';
+      await prisma.pointsAccount.update({
+        where: { id: account.id },
+        data: { points: account.points + BigInt(pointsToAdd), lastSyncAt: new Date() },
+      });
+    } catch (error) {
+      // Keep pending if the chain is unavailable
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'POINTS_ADD',
-        status: 'PENDING',
+        status,
         pointsAccountId: account.id,
         amount: BigInt(pointsToAdd),
-        txHash: 'pending',
+        txHash,
       },
     });
 
@@ -226,20 +245,40 @@ router.post(
     // Calculate crypto value (default rate: 100 points = 1 crypto)
     const cryptoEarned = Math.floor(pointsToSwap / 100);
 
-    // Create transaction record
+    let txHash = `pending-swap-${account.id}-${Date.now()}`;
+    let status: 'PENDING' | 'CONFIRMED' = 'PENDING';
+    let earned = cryptoEarned;
+    try {
+      const swapped = await ethereumService.swapPoints(ethereumAddress, Number(pointsToSwap));
+      txHash = swapped.txHash;
+      const cryptoWei = BigInt(swapped.cryptoEarned || '0');
+      earned = cryptoWei > BigInt(0) ? Number(cryptoWei / BigInt(1e18)) : cryptoEarned;
+      status = 'CONFIRMED';
+      await prisma.pointsAccount.update({
+        where: { id: account.id },
+        data: {
+          points: account.points - BigInt(pointsToSwap),
+          cryptoValue: account.cryptoValue + cryptoWei,
+          lastSyncAt: new Date(),
+        },
+      });
+    } catch (error) {
+      // Keep pending if the chain is unavailable
+    }
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'POINTS_SWAP',
-        status: 'PENDING',
+        status,
         pointsAccountId: account.id,
         amount: BigInt(pointsToSwap),
         metadata: {
           pointsSwapped: pointsToSwap,
-          cryptoEarned,
+          cryptoEarned: earned,
           exchangeRate: 100,
         },
-        txHash: 'pending',
+        txHash,
       },
     });
 

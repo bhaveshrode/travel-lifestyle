@@ -2,8 +2,8 @@
 pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title TravelPointsExchange
@@ -28,6 +28,7 @@ contract TravelPointsExchange is Ownable, ReentrancyGuard, Pausable {
     error InsufficientPoints();
     error InsufficientCrypto();
     error InvalidAmount();
+    error InvalidAddress();
     error BelowMinimumSwap();
     error ExchangeRateTooLow();
 
@@ -92,9 +93,14 @@ contract TravelPointsExchange is Ownable, ReentrancyGuard, Pausable {
         _;
     }
 
+    modifier validUser(address user) {
+        if (user == address(0)) revert InvalidAddress();
+        _;
+    }
+
     // ============ Constructor ============
 
-    constructor() {}
+    constructor() Ownable(msg.sender) {}
 
     // ============ Public Functions ============
 
@@ -194,6 +200,81 @@ contract TravelPointsExchange is Ownable, ReentrancyGuard, Pausable {
         }));
 
         emit PointsSwapped(msg.sender, pointsToSwap, cryptoAmount);
+    }
+
+    /**
+     * @notice Create a points account for a user (owner only)
+     */
+    function createAccountFor(address user, uint256 initialPoints)
+        external
+        onlyOwner
+        validUser(user)
+        validAmount(initialPoints)
+        whenNotPaused
+    {
+        if (hasAccount[user]) revert AccountAlreadyExists();
+
+        accounts[user] = PointsAccount({
+            points: initialPoints,
+            cryptoValue: 0,
+            totalPointsEarned: initialPoints,
+            totalPointsSwapped: 0,
+            totalCryptoEarned: 0,
+            transactionCount: 0,
+            createdAt: block.timestamp,
+            lastUpdated: block.timestamp,
+            isActive: true
+        });
+
+        hasAccount[user] = true;
+        totalAccounts++;
+        totalPointsIssued += initialPoints;
+
+        emit AccountCreated(user, initialPoints);
+    }
+
+    /**
+     * @notice Swap points for crypto for a user (owner only)
+     */
+    function swapPointsForCryptoFor(address user, uint256 pointsToSwap)
+        external
+        onlyOwner
+        validUser(user)
+        validAmount(pointsToSwap)
+        nonReentrant
+        whenNotPaused
+    {
+        if (!hasAccount[user]) revert AccountNotFound();
+
+        PointsAccount storage account = accounts[user];
+
+        if (account.points < pointsToSwap) revert InsufficientPoints();
+        if (pointsToSwap < minimumSwapPoints) revert BelowMinimumSwap();
+
+        uint256 cryptoAmount = (pointsToSwap * 1e18) / pointsPerCrypto;
+        if (cryptoAmount == 0) revert ExchangeRateTooLow();
+
+        uint256 newCryptoValue = account.cryptoValue + cryptoAmount;
+        if (newCryptoValue < account.cryptoValue) revert InvalidAmount();
+
+        account.points -= pointsToSwap;
+        account.cryptoValue = newCryptoValue;
+        account.totalPointsSwapped += pointsToSwap;
+        account.totalCryptoEarned += cryptoAmount;
+        account.transactionCount++;
+        account.lastUpdated = block.timestamp;
+
+        totalCryptoDistributed += cryptoAmount;
+
+        swapHistory.push(SwapTransaction({
+            user: user,
+            pointsSwapped: pointsToSwap,
+            cryptoEarned: cryptoAmount,
+            timestamp: block.timestamp,
+            exchangeRateUsed: pointsPerCrypto
+        }));
+
+        emit PointsSwapped(user, pointsToSwap, cryptoAmount);
     }
 
     /**
