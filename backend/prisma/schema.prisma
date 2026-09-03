@@ -16,7 +16,7 @@ model User {
   email         String   @unique
   username      String   @unique
   passwordHash  String   @map("password_hash")
-  aptosAddress  String   @unique @map("aptos_address")
+  ethereumAddress String   @unique @map("ethereum_address")
 
   // Profile information
   firstName     String?  @map("first_name")
@@ -60,7 +60,7 @@ model RefreshToken {
 model TravelCard {
   id              String   @id @default(uuid())
   userId          String   @map("user_id")
-  aptosAddress    String   @unique @map("aptos_address")
+  ethereumAddress String   @unique @map("ethereum_address")
 
   // Balances (cached from blockchain)
   balance         BigInt   @default(0)
@@ -86,7 +86,7 @@ model TravelCard {
 model NFT {
   id              String   @id @default(uuid())
   userId          String   @map("user_id")
-  aptosAddress    String   @map("aptos_address")
+  ethereumAddress String   @map("ethereum_address")
 
   // NFT data
   nftId           BigInt   @map("nft_id")
@@ -113,7 +113,7 @@ model NFT {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions    Transaction[]
 
-  @@unique([aptosAddress, nftId])
+  @@unique([ethereumAddress, nftId])
   @@map("nfts")
 }
 
@@ -121,7 +121,7 @@ model NFT {
 model PointsAccount {
   id              String   @id @default(uuid())
   userId          String   @map("user_id")
-  aptosAddress    String   @unique @map("aptos_address")
+  ethereumAddress String   @unique @map("ethereum_address")
 
   // Balances (cached from blockchain)
   points          BigInt   @default(0)

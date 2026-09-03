@@ -107,12 +107,13 @@ JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 JWT_EXPIRES_IN=7d
 JWT_REFRESH_EXPIRES_IN=30d
 
-# Aptos Configuration (get this after deploying contracts)
-APTOS_NETWORK=testnet
-APTOS_NODE_URL=https://fullnode.testnet.aptoslabs.com/v1
-APTOS_FAUCET_URL=https://faucet.testnet.aptoslabs.com
-APTOS_MODULE_ADDRESS=0x... # YOUR MODULE ADDRESS HERE
-ADMIN_PRIVATE_KEY=0x...    # YOUR ADMIN PRIVATE KEY HERE
+# Ethereum Configuration (get this after deploying contracts)
+ETHEREUM_NETWORK=localhost
+ETHEREUM_RPC_URL=http://127.0.0.1:8545
+PRIVATE_KEY=0x...
+TRAVEL_CARD_ADDRESS=0x...
+NFTS_ADDRESS=0x...
+POINTS_ADDRESS=0x...
 
 # CORS Configuration
 CORS_ORIGIN=http://localhost:3000
@@ -134,27 +135,26 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 ### Step 6: Deploy Smart Contracts
 
-Before running the backend, deploy the Move contracts to Aptos testnet:
+Before running the backend, deploy the Solidity contracts with Hardhat:
 
 ```bash
 # From project root
-cd ..
+cd ../contracts
 
-# Install Aptos CLI (if not already installed)
-# macOS/Linux: curl -fsSL "https://aptos.dev/scripts/install_cli.py" | python3
-# Or download from: https://github.com/aptos-labs/aptos-core/releases
+# Install dependencies
+npm install
 
-# Initialize Aptos account (first time only)
-aptos init --network testnet
+# Compile contracts
+npm run compile
 
-# Compile Move contracts
-aptos move compile
+# Start local blockchain (separate terminal)
+npm run node
 
-# Publish to testnet
-aptos move publish --named-addresses travel_lifestyle=<YOUR_ACCOUNT_ADDRESS>
+# Deploy to localhost
+npm run deploy:localhost
 
-# Copy the module address and update .env
-# APTOS_MODULE_ADDRESS=0x...
+# Copy contract addresses into backend/.env
+# TRAVEL_CARD_ADDRESS, NFTS_ADDRESS, POINTS_ADDRESS
 ```
 
 ### Step 7: Database Migrations
@@ -205,7 +205,7 @@ curl -X POST http://localhost:3001/api/v1/auth/register \
     "email": "test@example.com",
     "username": "testuser",
     "password": "password123",
-    "aptosAddress": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef"
+    "ethereumAddress": "0x1234567890abcdef1234567890abcdef12345678"
   }'
 ```
 
@@ -284,7 +284,7 @@ docker run -d \
   -e DATABASE_URL="postgresql://..." \
   -e REDIS_HOST="..." \
   -e JWT_SECRET="..." \
-  -e APTOS_MODULE_ADDRESS="..." \
+  -e ETHEREUM_RPC_URL="http://127.0.0.1:8545" \
   --name travel-backend \
   travel-lifestyle-backend
 ```
@@ -332,10 +332,11 @@ Before deploying, ensure all these are set:
 - [x] `DATABASE_URL` (production database)
 - [x] `REDIS_HOST` and `REDIS_PASSWORD`
 - [x] `JWT_SECRET` (strong random secret)
-- [x] `APTOS_MODULE_ADDRESS` (mainnet address)
-- [x] `APTOS_NETWORK=mainnet`
+- [x] `ETHEREUM_RPC_URL` (Ethereum RPC endpoint)
+- [x] `ETHEREUM_NETWORK=mainnet`
+- [x] `TRAVEL_CARD_ADDRESS`, `NFTS_ADDRESS`, `POINTS_ADDRESS`
 - [x] `CORS_ORIGIN` (production frontend URL)
-- [x] `ADMIN_PRIVATE_KEY` (secure storage!)
+- [x] `PRIVATE_KEY` (secure storage!)
 
 ## Database Backup
 
@@ -436,7 +437,7 @@ docker-compose ps        # Check status
 └────┼──────────────────────┼─────────┘
      │                      │
 ┌────▼──────────┐    ┌─────▼──────────┐
-│   PostgreSQL  │    │  Aptos Network │
+│   PostgreSQL  │    │ Ethereum Network│
 │   (Database)  │    │  (Blockchain)  │
 └───────────────┘    └────────────────┘
      │

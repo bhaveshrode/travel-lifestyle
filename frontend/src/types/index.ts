@@ -3,7 +3,7 @@ export interface User {
   id: string;
   email: string;
   username: string;
-  aptosAddress: string;
+  ethereumAddress: string;
   firstName?: string;
   lastName?: string;
   avatar?: string;
@@ -174,7 +174,7 @@ export interface RegisterForm {
   email: string;
   username: string;
   password: string;
-  aptosAddress: string;
+  ethereumAddress: string;
 }
 
 export interface CreateCardForm {

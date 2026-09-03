@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { aptosService } from '../services/aptos.service';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate, schemas } from '../middleware/validation.middleware';
@@ -20,16 +19,16 @@ router.post(
   validate(schemas.createNFT),
   asyncHandler(async (req, res) => {
     const { description, price, imageUrl, category, location } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     // Check if collection is initialized
     const existingNFTs = await prisma.nFT.findFirst({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     // Get next NFT ID
     const nftCount = await prisma.nFT.count({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
     const nextNftId = nftCount;
 
@@ -37,7 +36,7 @@ router.post(
     const nft = await prisma.nFT.create({
       data: {
         userId,
-        aptosAddress,
+        ethereumAddress,
         nftId: BigInt(nextNftId),
         description,
         price: BigInt(price),
@@ -66,7 +65,7 @@ router.post(
     });
 
     // Clear cache
-    await cache.delPattern(`nfts:${aptosAddress}*`);
+    await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.status(201).json({
       success: true,
@@ -89,7 +88,7 @@ router.post(
 router.get(
   '/',
   asyncHandler(async (req, res) => {
-    const { aptosAddress } = req.user!;
+    const { ethereumAddress } = req.user!;
     const { page = 1, limit = 20, category, listed } = req.query;
 
     const pageNum = parseInt(page as string, 10);
@@ -97,7 +96,7 @@ router.get(
     const skip = (pageNum - 1) * limitNum;
 
     // Build filters
-    const where: any = { aptosAddress };
+    const where: any = { ethereumAddress };
     if (category) {
       where.category = category;
     }
@@ -106,7 +105,7 @@ router.get(
     }
 
     // Try cache first
-    const cacheKey = `nfts:${aptosAddress}:${pageNum}:${limitNum}:${category || 'all'}:${listed || 'all'}`;
+    const cacheKey = `nfts:${ethereumAddress}:${pageNum}:${limitNum}:${category || 'all'}:${listed || 'all'}`;
     const cached = await cache.get(cacheKey);
 
     if (cached) {
@@ -160,12 +159,12 @@ router.get(
   '/:id',
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { aptosAddress } = req.user!;
+    const { ethereumAddress } = req.user!;
 
     const nft = await prisma.nFT.findFirst({
       where: {
         id,
-        aptosAddress,
+        ethereumAddress,
       },
       include: {
         user: {
@@ -205,13 +204,13 @@ router.post(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { recipientAddress } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     // Validate NFT ownership
     const nft = await prisma.nFT.findFirst({
       where: {
         id,
-        aptosAddress,
+        ethereumAddress,
       },
     });
 
@@ -229,7 +228,7 @@ router.post(
       });
     }
 
-    if (recipientAddress === aptosAddress) {
+    if (recipientAddress === ethereumAddress) {
       return res.status(400).json({
         success: false,
         error: 'Cannot transfer NFT to yourself',
@@ -252,7 +251,7 @@ router.post(
         type: 'NFT_OFFER',
         status: 'PENDING',
         nftId: nft.id,
-        fromAddress: aptosAddress,
+        fromAddress: ethereumAddress,
         toAddress: recipientAddress,
         metadata: {
           nftId: nft.nftId.toString(),
@@ -263,7 +262,7 @@ router.post(
     });
 
     // Clear cache
-    await cache.delPattern(`nfts:${aptosAddress}*`);
+    await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.json({
       success: true,
@@ -285,15 +284,15 @@ router.post(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { fromAddress } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     // Find NFT offered to this user
     const nft = await prisma.nFT.findFirst({
       where: {
         id,
-        aptosAddress: fromAddress,
+        ethereumAddress: fromAddress,
         isPendingTransfer: true,
-        pendingTo: aptosAddress,
+        pendingTo: ethereumAddress,
       },
     });
 
@@ -312,7 +311,7 @@ router.post(
         status: 'PENDING',
         nftId: nft.id,
         fromAddress,
-        toAddress: aptosAddress,
+        toAddress: ethereumAddress,
         metadata: {
           nftId: nft.nftId.toString(),
           description: nft.description,
@@ -323,7 +322,7 @@ router.post(
 
     // Clear cache
     await cache.delPattern(`nfts:${fromAddress}*`);
-    await cache.delPattern(`nfts:${aptosAddress}*`);
+    await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.json({
       success: true,
@@ -343,13 +342,13 @@ router.post(
   '/:id/cancel',
   asyncHandler(async (req, res) => {
     const { id } = req.params;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     // Validate NFT ownership
     const nft = await prisma.nFT.findFirst({
       where: {
         id,
-        aptosAddress,
+        ethereumAddress,
         isPendingTransfer: true,
       },
     });
@@ -386,7 +385,7 @@ router.post(
     });
 
     // Clear cache
-    await cache.delPattern(`nfts:${aptosAddress}*`);
+    await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.json({
       success: true,
@@ -407,12 +406,12 @@ router.put(
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const { isListed } = req.body;
-    const { aptosAddress } = req.user!;
+    const { ethereumAddress } = req.user!;
 
     const nft = await prisma.nFT.findFirst({
       where: {
         id,
-        aptosAddress,
+        ethereumAddress,
       },
     });
 
@@ -436,7 +435,7 @@ router.put(
     });
 
     // Clear cache
-    await cache.delPattern(`nfts:${aptosAddress}*`);
+    await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.json({
       success: true,

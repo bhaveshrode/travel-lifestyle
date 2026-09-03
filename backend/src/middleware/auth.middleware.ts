@@ -8,7 +8,7 @@ declare global {
     interface Request {
       user?: {
         userId: string;
-        aptosAddress: string;
+        ethereumAddress: string;
         email: string;
       };
     }

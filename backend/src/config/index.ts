@@ -27,13 +27,14 @@ export const config = {
     refreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '30d',
   },
 
-  // Aptos
-  aptos: {
-    network: (process.env.APTOS_NETWORK || 'testnet') as 'mainnet' | 'testnet' | 'devnet',
-    nodeUrl: process.env.APTOS_NODE_URL || 'https://fullnode.testnet.aptoslabs.com/v1',
-    faucetUrl: process.env.APTOS_FAUCET_URL || 'https://faucet.testnet.aptoslabs.com',
-    moduleAddress: process.env.APTOS_MODULE_ADDRESS || '',
-    adminPrivateKey: process.env.ADMIN_PRIVATE_KEY || '',
+  // Ethereum
+  ethereum: {
+    network: process.env.ETHEREUM_NETWORK || 'localhost',
+    rpcUrl: process.env.ETHEREUM_RPC_URL || 'http://127.0.0.1:8545',
+    privateKey: process.env.PRIVATE_KEY || '',
+    travelCardAddress: process.env.TRAVEL_CARD_ADDRESS || '',
+    nftsAddress: process.env.NFTS_ADDRESS || '',
+    pointsAddress: process.env.POINTS_ADDRESS || '',
   },
 
   // CORS
@@ -69,7 +70,7 @@ export function validateConfig() {
   const required = [
     'DATABASE_URL',
     'JWT_SECRET',
-    'APTOS_MODULE_ADDRESS',
+    'ETHEREUM_RPC_URL',
   ];
 
   const missing = required.filter((key) => !process.env[key]);

@@ -208,7 +208,7 @@ All list endpoints support:
 # 1. Register & Login
 curl -X POST http://localhost:3001/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","username":"test","password":"test1234","aptosAddress":"0x123"}'
+  -d '{"email":"test@test.com","username":"test","password":"test1234","ethereumAddress":"0x123"}'
 
 curl -X POST http://localhost:3001/api/v1/auth/login \
   -H "Content-Type: application/json" \

@@ -36,7 +36,7 @@ Create a new user account.
   "email": "user@example.com",
   "username": "johndoe",
   "password": "securePassword123",
-  "aptosAddress": "0x1234567890abcdef..."
+  "ethereumAddress": "0x1234567890abcdef..."
 }
 ```
 
@@ -49,7 +49,7 @@ Create a new user account.
       "id": "uuid",
       "email": "user@example.com",
       "username": "johndoe",
-      "aptosAddress": "0x1234...",
+      "ethereumAddress": "0x1234...",
       "createdAt": "2024-01-01T00:00:00.000Z"
     },
     "accessToken": "eyJhbGciOiJIUzI1NiIs...",
@@ -82,7 +82,7 @@ Authenticate user and get tokens.
       "id": "uuid",
       "email": "user@example.com",
       "username": "johndoe",
-      "aptosAddress": "0x1234..."
+      "ethereumAddress": "0x1234..."
     },
     "accessToken": "eyJhbGciOiJIUzI1NiIs...",
     "refreshToken": "eyJhbGciOiJIUzI1NiIs..."
@@ -155,7 +155,7 @@ Get authenticated user's profile.
     "id": "uuid",
     "email": "user@example.com",
     "username": "johndoe",
-    "aptosAddress": "0x1234...",
+    "ethereumAddress": "0x1234...",
     "firstName": "John",
     "lastName": "Doe",
     "avatar": "https://example.com/avatar.jpg",
@@ -256,7 +256,7 @@ Get public profile by username.
   "data": {
     "profile": {
       "username": "johndoe",
-      "aptosAddress": "0x1234...",
+      "ethereumAddress": "0x1234...",
       "firstName": "John",
       "lastName": "Doe",
       "avatar": "https://example.com/avatar.jpg",
@@ -878,7 +878,7 @@ curl -X POST http://localhost:3001/api/v1/auth/register \
     "email": "test@example.com",
     "username": "testuser",
     "password": "password123",
-    "aptosAddress": "0x1234..."
+    "ethereumAddress": "0x1234..."
   }'
 
 # Login

@@ -51,8 +51,12 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: 6379
       JWT_SECRET: ${JWT_SECRET:-change-this-secret-in-production}
-      APTOS_MODULE_ADDRESS: ${APTOS_MODULE_ADDRESS}
-      APTOS_NETWORK: ${APTOS_NETWORK:-testnet}
+      ETHEREUM_NETWORK: ${ETHEREUM_NETWORK:-localhost}
+      ETHEREUM_RPC_URL: ${ETHEREUM_RPC_URL:-http://127.0.0.1:8545}
+      PRIVATE_KEY: ${PRIVATE_KEY:-}
+      TRAVEL_CARD_ADDRESS: ${TRAVEL_CARD_ADDRESS:-}
+      NFTS_ADDRESS: ${NFTS_ADDRESS:-}
+      POINTS_ADDRESS: ${POINTS_ADDRESS:-}
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
     depends_on:
       postgres:

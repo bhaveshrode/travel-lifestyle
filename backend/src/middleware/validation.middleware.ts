@@ -41,7 +41,7 @@ export const schemas = {
     email: Joi.string().email().required(),
     username: Joi.string().alphanum().min(3).max(30).required(),
     password: Joi.string().min(8).required(),
-    aptosAddress: Joi.string().required(),
+    ethereumAddress: Joi.string().required(),
   }),
 
   login: Joi.object({
