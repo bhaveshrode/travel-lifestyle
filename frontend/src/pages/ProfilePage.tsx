@@ -207,10 +207,10 @@ export default function ProfilePage() {
             <p className="text-xs text-gray-500 mt-1">Username cannot be changed</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Aptos Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ethereum Address</label>
             <input
               type="text"
-              value={user.aptosAddress}
+              value={user.ethereumAddress}
               disabled
               className="input bg-gray-50 font-mono text-sm"
             />

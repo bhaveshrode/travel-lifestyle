@@ -145,7 +145,7 @@ router.get(
         travelCard: {
           select: {
             id: true,
-            aptosAddress: true,
+            ethereumAddress: true,
             balance: true,
             cryptoBalance: true,
             currency: true,
@@ -163,7 +163,7 @@ router.get(
         pointsAccount: {
           select: {
             id: true,
-            aptosAddress: true,
+            ethereumAddress: true,
             points: true,
             cryptoValue: true,
           },

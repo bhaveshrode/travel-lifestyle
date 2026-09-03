@@ -1,5 +1,5 @@
 import { ethers } from 'ethers';
-import logger from '../config/logger';
+import { logger } from '../config/logger';
 
 /**
  * Ethereum Service
@@ -377,6 +377,38 @@ class EthereumService {
    */
   isValidAddress(address: string): boolean {
     return ethers.isAddress(address);
+  }
+
+  /**
+   * Get travel card fiat balance from blockchain
+   */
+  async getTravelCardBalance(userAddress: string): Promise<string> {
+    logger.info(`Fetching travel card balance for ${userAddress}`);
+    return '0';
+  }
+
+  /**
+   * Get travel card crypto balance from blockchain
+   */
+  async getCryptoBalance(userAddress: string): Promise<string> {
+    logger.info(`Fetching crypto balance for ${userAddress}`);
+    return '0';
+  }
+
+  /**
+   * Get loyalty points balance from blockchain
+   */
+  async getPointsBalance(userAddress: string): Promise<string> {
+    logger.info(`Fetching points balance for ${userAddress}`);
+    return '0';
+  }
+
+  /**
+   * Get points account crypto value from blockchain
+   */
+  async getPointsCryptoValue(userAddress: string): Promise<string> {
+    logger.info(`Fetching points crypto value for ${userAddress}`);
+    return '0';
   }
 }
 

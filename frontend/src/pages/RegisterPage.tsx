@@ -10,7 +10,7 @@ export default function RegisterPage() {
     username: '',
     password: '',
     confirmPassword: '',
-    aptosAddress: '',
+    ethereumAddress: '',
   });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -37,7 +37,7 @@ export default function RegisterPage() {
         email: formData.email,
         username: formData.username,
         password: formData.password,
-        aptosAddress: formData.aptosAddress,
+        ethereumAddress: formData.ethereumAddress,
       });
       toast.success('Account created successfully!');
       navigate('/dashboard');
@@ -56,10 +56,10 @@ export default function RegisterPage() {
   };
 
   const generateDemoAddress = () => {
-    const randomHex = Array.from({ length: 64 }, () =>
+    const randomHex = Array.from({ length: 40 }, () =>
       Math.floor(Math.random() * 16).toString(16)
     ).join('');
-    setFormData({ ...formData, aptosAddress: `0x${randomHex}` });
+    setFormData({ ...formData, ethereumAddress: `0x${randomHex}` });
     toast.success('Demo address generated!');
   };
 
@@ -150,17 +150,17 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Aptos Address */}
+            {/* Ethereum Address */}
             <div>
               <label className="label">
                 <FaWallet className="inline mr-2" />
-                Aptos Wallet Address
+                Ethereum Wallet Address
               </label>
               <div className="flex space-x-2">
                 <input
                   type="text"
-                  name="aptosAddress"
-                  value={formData.aptosAddress}
+                  name="ethereumAddress"
+                  value={formData.ethereumAddress}
                   onChange={handleChange}
                   className="input flex-1"
                   placeholder="0x..."
@@ -175,7 +175,7 @@ export default function RegisterPage() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Use your Petra or Martian wallet address
+                Use your MetaMask or Ethereum wallet address
               </p>
             </div>
 

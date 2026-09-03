@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { aptosService } from '../services/aptos.service';
+import ethereumService from '../services/ethereum.service';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate, schemas } from '../middleware/validation.middleware';
@@ -20,11 +20,11 @@ router.post(
   validate(schemas.createPointsExchange),
   asyncHandler(async (req, res) => {
     const { points, cryptoValue } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     // Check if user already has a points account
     const existingAccount = await prisma.pointsAccount.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (existingAccount) {
@@ -38,7 +38,7 @@ router.post(
     const account = await prisma.pointsAccount.create({
       data: {
         userId,
-        aptosAddress,
+        ethereumAddress,
         points: BigInt(points),
         cryptoValue: BigInt(cryptoValue),
       },
@@ -78,10 +78,10 @@ router.post(
 router.get(
   '/my',
   asyncHandler(async (req, res) => {
-    const { aptosAddress } = req.user!;
+    const { ethereumAddress } = req.user!;
 
     // Try cache first
-    const cacheKey = `points:${aptosAddress}`;
+    const cacheKey = `points:${ethereumAddress}`;
     const cached = await cache.get(cacheKey);
 
     if (cached) {
@@ -94,7 +94,7 @@ router.get(
 
     // Get from database
     const account = await prisma.pointsAccount.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (!account) {
@@ -106,8 +106,8 @@ router.get(
 
     // Sync with blockchain
     try {
-      const points = await aptosService.getPointsBalance(aptosAddress);
-      const cryptoValue = await aptosService.getPointsCryptoValue(aptosAddress);
+      const points = await ethereumService.getPointsBalance(ethereumAddress);
+      const cryptoValue = await ethereumService.getPointsCryptoValue(ethereumAddress);
 
       // Update database
       await prisma.pointsAccount.update({
@@ -156,10 +156,10 @@ router.post(
   validate(schemas.addPoints),
   asyncHandler(async (req, res) => {
     const { pointsToAdd } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     const account = await prisma.pointsAccount.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (!account) {
@@ -182,7 +182,7 @@ router.post(
     });
 
     // Clear cache
-    await cache.del(`points:${aptosAddress}`);
+    await cache.del(`points:${ethereumAddress}`);
 
     res.json({
       success: true,
@@ -203,10 +203,10 @@ router.post(
   validate(schemas.swapPoints),
   asyncHandler(async (req, res) => {
     const { pointsToSwap } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     const account = await prisma.pointsAccount.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (!account) {
@@ -244,7 +244,7 @@ router.post(
     });
 
     // Clear cache
-    await cache.del(`points:${aptosAddress}`);
+    await cache.del(`points:${ethereumAddress}`);
 
     res.json({
       success: true,
@@ -283,7 +283,7 @@ router.get(
     try {
       let rate;
       if (rateOwner) {
-        rate = await aptosService.getPointsBalance(rateOwner as string);
+        rate = await ethereumService.getPointsBalance(rateOwner as string);
       } else {
         // Default rate
         rate = 100; // 100 points = 1 crypto unit
@@ -385,10 +385,10 @@ router.get(
 router.get(
   '/stats',
   asyncHandler(async (req, res) => {
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     // Try cache first
-    const cacheKey = `points-stats:${aptosAddress}`;
+    const cacheKey = `points-stats:${ethereumAddress}`;
     const cached = await cache.get(cacheKey);
 
     if (cached) {
@@ -400,7 +400,7 @@ router.get(
     }
 
     const account = await prisma.pointsAccount.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (!account) {

@@ -6,7 +6,7 @@ import { logger } from '../config/logger';
 
 export interface JwtPayload {
   userId: string;
-  aptosAddress: string;
+  ethereumAddress: string;
   email: string;
 }
 
@@ -62,7 +62,7 @@ export class AuthService {
     email: string;
     username: string;
     password: string;
-    aptosAddress: string;
+    ethereumAddress: string;
   }) {
     try {
       // Check if user exists
@@ -71,7 +71,7 @@ export class AuthService {
           OR: [
             { email: data.email },
             { username: data.username },
-            { aptosAddress: data.aptosAddress },
+            { ethereumAddress: data.ethereumAddress },
           ],
         },
       });
@@ -89,13 +89,13 @@ export class AuthService {
           email: data.email,
           username: data.username,
           passwordHash,
-          aptosAddress: data.aptosAddress,
+          ethereumAddress: data.ethereumAddress,
         },
         select: {
           id: true,
           email: true,
           username: true,
-          aptosAddress: true,
+          ethereumAddress: true,
           createdAt: true,
         },
       });
@@ -103,7 +103,7 @@ export class AuthService {
       // Generate tokens
       const payload: JwtPayload = {
         userId: user.id,
-        aptosAddress: user.aptosAddress,
+        ethereumAddress: user.ethereumAddress,
         email: user.email,
       };
 
@@ -162,7 +162,7 @@ export class AuthService {
       // Generate tokens
       const payload: JwtPayload = {
         userId: user.id,
-        aptosAddress: user.aptosAddress,
+        ethereumAddress: user.ethereumAddress,
         email: user.email,
       };
 
@@ -185,7 +185,7 @@ export class AuthService {
           id: user.id,
           email: user.email,
           username: user.username,
-          aptosAddress: user.aptosAddress,
+          ethereumAddress: user.ethereumAddress,
         },
         accessToken,
         refreshToken,
@@ -217,7 +217,7 @@ export class AuthService {
       // Generate new access token
       const newPayload: JwtPayload = {
         userId: storedToken.user.id,
-        aptosAddress: storedToken.user.aptosAddress,
+        ethereumAddress: storedToken.user.ethereumAddress,
         email: storedToken.user.email,
       };
 

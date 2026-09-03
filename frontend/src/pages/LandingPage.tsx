@@ -98,7 +98,7 @@ export default function LandingPage() {
             </div>
             <h3 className="text-xl font-bold mb-2">Secure & Transparent</h3>
             <p className="text-gray-600">
-              Built on Aptos blockchain for secure, fast, and transparent transactions.
+              Built on Ethereum for secure, fast, and transparent transactions.
             </p>
           </div>
         </div>

@@ -13,13 +13,13 @@ router.post(
   '/register',
   validate(schemas.register),
   asyncHandler(async (req, res) => {
-    const { email, username, password, aptosAddress } = req.body;
+    const { email, username, password, ethereumAddress } = req.body;
 
     const result = await authService.register({
       email,
       username,
       password,
-      aptosAddress,
+      ethereumAddress,
     });
 
     res.status(201).json({

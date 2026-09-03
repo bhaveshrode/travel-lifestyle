@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { aptosService } from '../services/aptos.service';
+import ethereumService from '../services/ethereum.service';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate, schemas } from '../middleware/validation.middleware';
@@ -20,11 +20,11 @@ router.post(
   validate(schemas.createTravelCard),
   asyncHandler(async (req, res) => {
     const { initialBalance, currency } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     // Check if user already has a card
     const existingCard = await prisma.travelCard.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (existingCard) {
@@ -38,7 +38,7 @@ router.post(
     const card = await prisma.travelCard.create({
       data: {
         userId,
-        aptosAddress,
+        ethereumAddress,
         balance: BigInt(initialBalance),
         currency,
       },
@@ -78,10 +78,10 @@ router.post(
 router.get(
   '/my',
   asyncHandler(async (req, res) => {
-    const { aptosAddress } = req.user!;
+    const { ethereumAddress } = req.user!;
 
     // Try cache first
-    const cacheKey = `card:${aptosAddress}`;
+    const cacheKey = `card:${ethereumAddress}`;
     const cached = await cache.get(cacheKey);
 
     if (cached) {
@@ -94,7 +94,7 @@ router.get(
 
     // Get from database
     const card = await prisma.travelCard.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (!card) {
@@ -106,8 +106,8 @@ router.get(
 
     // Sync with blockchain
     try {
-      const balance = await aptosService.getTravelCardBalance(aptosAddress);
-      const cryptoBalance = await aptosService.getCryptoBalance(aptosAddress);
+      const balance = await ethereumService.getTravelCardBalance(ethereumAddress);
+      const cryptoBalance = await ethereumService.getCryptoBalance(ethereumAddress);
 
       // Update database
       await prisma.travelCard.update({
@@ -156,10 +156,10 @@ router.post(
   validate(schemas.loadFunds),
   asyncHandler(async (req, res) => {
     const { amount } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     const card = await prisma.travelCard.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (!card) {
@@ -182,7 +182,7 @@ router.post(
     });
 
     // Clear cache
-    await cache.del(`card:${aptosAddress}`);
+    await cache.del(`card:${ethereumAddress}`);
 
     res.json({
       success: true,
@@ -203,10 +203,10 @@ router.post(
   validate(schemas.convertToCrypto),
   asyncHandler(async (req, res) => {
     const { amount } = req.body;
-    const { userId, aptosAddress } = req.user!;
+    const { userId, ethereumAddress } = req.user!;
 
     const card = await prisma.travelCard.findUnique({
-      where: { aptosAddress },
+      where: { ethereumAddress },
     });
 
     if (!card) {
@@ -236,7 +236,7 @@ router.post(
     });
 
     // Clear cache
-    await cache.del(`card:${aptosAddress}`);
+    await cache.del(`card:${ethereumAddress}`);
 
     res.json({
       success: true,

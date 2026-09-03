@@ -195,13 +195,13 @@ export default function TravelCardPage() {
           <div>
             <p className="text-blue-100 text-sm mb-1">Crypto Balance</p>
             <p className="text-xl font-semibold">
-              {parseFloat(card.cryptoBalance).toFixed(4)} APT
+              {parseFloat(card.cryptoBalance).toFixed(4)} ETH
             </p>
           </div>
         </div>
         <div className="mt-6 pt-6 border-t border-blue-400">
-          <p className="text-blue-100 text-sm mb-1">Aptos Address</p>
-          <p className="text-sm font-mono truncate">{card.aptosAddress}</p>
+          <p className="text-blue-100 text-sm mb-1">Ethereum Address</p>
+          <p className="text-sm font-mono truncate">{user?.ethereumAddress}</p>
         </div>
       </div>
 
