@@ -40,6 +40,12 @@ frontend/.vite/
 *.db
 *.sqlite
 
+# Contracts
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/deployments-*.json
+
 # Cache
 .cache/
 *.cache

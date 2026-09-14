@@ -1,6 +1,8 @@
 import { useAuthStore } from '@/store/authStore';
 import { FaWallet, FaImage, FaCoins, FaHistory } from 'react-icons/fa';
 import { Link } from 'react-router-dom';
+import WalletConnectButton from '@/components/WalletConnectButton';
+import { shortenAddress } from '@/services/wallet';
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -44,6 +46,22 @@ export default function DashboardPage() {
           Welcome back, {user?.firstName || user?.username}!
         </h1>
         <p className="text-gray-600 mt-1">Here's an overview of your account</p>
+      </div>
+
+      <div className="card">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">External Wallet</h2>
+            <p className="text-gray-600 mt-1">
+              {user?.ethereumAddress
+                ? `Current address ${shortenAddress(user.ethereumAddress)}. Connect MetaMask to use it for payouts.`
+                : 'Connect MetaMask or another wallet before converting or swapping crypto.'}
+            </p>
+          </div>
+          <div className="md:w-64">
+            <WalletConnectButton compact />
+          </div>
+        </div>
       </div>
 
       {/* Stats Grid */}

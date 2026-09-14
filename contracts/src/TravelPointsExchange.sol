@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.20;
+pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/security/Pausable.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
  * @title TravelPointsExchange
@@ -94,7 +94,7 @@ contract TravelPointsExchange is Ownable, ReentrancyGuard, Pausable {
 
     // ============ Constructor ============
 
-    constructor() {}
+    constructor() Ownable(msg.sender) {}
 
     // ============ Public Functions ============
 

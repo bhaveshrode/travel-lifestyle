@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import ethereumService from '../services/ethereum.service';
 import { prisma } from '../config/database';
 import { authenticate } from '../middleware/auth.middleware';
 import { validate, schemas } from '../middleware/validation.middleware';
@@ -21,37 +22,43 @@ router.post(
     const { description, price, imageUrl, category, location } = req.body;
     const { userId, ethereumAddress } = req.user!;
 
-    // Check if collection is initialized
-    const existingNFTs = await prisma.nFT.findFirst({
-      where: { ethereumAddress },
-    });
+    const tokenURI = imageUrl || '';
+    let minted: { txHash: string; tokenId: string };
+    try {
+      minted = await ethereumService.mintNFT(
+        ethereumAddress,
+        description,
+        category || '',
+        location || '',
+        price,
+        tokenURI
+      );
+    } catch (error: any) {
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain mint failed',
+      });
+    }
 
-    // Get next NFT ID
-    const nftCount = await prisma.nFT.count({
-      where: { ethereumAddress },
-    });
-    const nextNftId = nftCount;
-
-    // Create NFT in database
     const nft = await prisma.nFT.create({
       data: {
         userId,
         ethereumAddress,
-        nftId: BigInt(nextNftId),
+        nftId: BigInt(minted.tokenId),
         description,
         price: BigInt(price),
         imageUrl,
+        metadataUrl: tokenURI || null,
         category,
         location,
       },
     });
 
-    // Create transaction record
     await prisma.transaction.create({
       data: {
         userId,
         type: 'NFT_CREATE',
-        status: 'PENDING',
+        status: 'CONFIRMED',
         nftId: nft.id,
         amount: BigInt(price),
         metadata: {
@@ -60,11 +67,11 @@ router.post(
           category,
           location,
         },
-        txHash: 'pending',
+        txHash: minted.txHash,
+        blockTimestamp: new Date(),
       },
     });
 
-    // Clear cache
     await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.status(201).json({
@@ -75,7 +82,8 @@ router.post(
           nftId: nft.nftId.toString(),
           price: nft.price.toString(),
         },
-        message: 'NFT creation initiated. Transaction will be processed on blockchain.',
+        txHash: minted.txHash,
+        message: 'NFT minted on blockchain.',
       },
     });
   })
@@ -235,7 +243,20 @@ router.post(
       });
     }
 
-    // Update NFT status
+    let txHash: string;
+    try {
+      txHash = await ethereumService.offerNFTTransfer(
+        nft.nftId.toString(),
+        ethereumAddress,
+        recipientAddress
+      );
+    } catch (error: any) {
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain offer failed',
+      });
+    }
+
     await prisma.nFT.update({
       where: { id },
       data: {
@@ -244,12 +265,11 @@ router.post(
       },
     });
 
-    // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'NFT_OFFER',
-        status: 'PENDING',
+        status: 'CONFIRMED',
         nftId: nft.id,
         fromAddress: ethereumAddress,
         toAddress: recipientAddress,
@@ -257,18 +277,19 @@ router.post(
           nftId: nft.nftId.toString(),
           description: nft.description,
         },
-        txHash: 'pending',
+        txHash,
+        blockTimestamp: new Date(),
       },
     });
 
-    // Clear cache
     await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.json({
       success: true,
       data: {
         transactionId: transaction.id,
-        message: 'NFT transfer offer initiated. Recipient can now claim the NFT.',
+        txHash,
+        message: 'NFT transfer offer submitted on blockchain.',
       },
     });
   })
@@ -303,12 +324,32 @@ router.post(
       });
     }
 
-    // Create transaction record
+    let txHash: string;
+    try {
+      txHash = await ethereumService.claimNFTTransfer(nft.nftId.toString(), ethereumAddress);
+    } catch (error: any) {
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain claim failed',
+      });
+    }
+
+    await prisma.nFT.update({
+      where: { id: nft.id },
+      data: {
+        userId,
+        ethereumAddress,
+        isPendingTransfer: false,
+        pendingTo: null,
+        isListed: false,
+      },
+    });
+
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'NFT_CLAIM',
-        status: 'PENDING',
+        status: 'CONFIRMED',
         nftId: nft.id,
         fromAddress,
         toAddress: ethereumAddress,
@@ -316,11 +357,11 @@ router.post(
           nftId: nft.nftId.toString(),
           description: nft.description,
         },
-        txHash: 'pending',
+        txHash,
+        blockTimestamp: new Date(),
       },
     });
 
-    // Clear cache
     await cache.delPattern(`nfts:${fromAddress}*`);
     await cache.delPattern(`nfts:${ethereumAddress}*`);
 
@@ -328,7 +369,8 @@ router.post(
       success: true,
       data: {
         transactionId: transaction.id,
-        message: 'NFT claim initiated. Transaction will be processed on blockchain.',
+        txHash,
+        message: 'NFT claimed on blockchain.',
       },
     });
   })
@@ -360,7 +402,16 @@ router.post(
       });
     }
 
-    // Update NFT status
+    let txHash: string;
+    try {
+      txHash = await ethereumService.cancelNFTTransfer(nft.nftId.toString(), ethereumAddress);
+    } catch (error: any) {
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain cancel failed',
+      });
+    }
+
     await prisma.nFT.update({
       where: { id },
       data: {
@@ -369,29 +420,29 @@ router.post(
       },
     });
 
-    // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'NFT_CANCEL',
-        status: 'PENDING',
+        status: 'CONFIRMED',
         nftId: nft.id,
         metadata: {
           nftId: nft.nftId.toString(),
           cancelledTo: nft.pendingTo,
         },
-        txHash: 'pending',
+        txHash,
+        blockTimestamp: new Date(),
       },
     });
 
-    // Clear cache
     await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.json({
       success: true,
       data: {
         transactionId: transaction.id,
-        message: 'NFT transfer cancelled successfully.',
+        txHash,
+        message: 'NFT transfer cancelled on blockchain.',
       },
     });
   })
@@ -429,18 +480,30 @@ router.put(
       });
     }
 
+    try {
+      if (isListed) {
+        await ethereumService.listNFT(ethereumAddress, nft.nftId.toString(), nft.price.toString());
+      } else {
+        await ethereumService.unlistNFT(ethereumAddress, nft.nftId.toString());
+      }
+    } catch (error: any) {
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain listing update failed',
+      });
+    }
+
     await prisma.nFT.update({
       where: { id },
       data: { isListed },
     });
 
-    // Clear cache
     await cache.delPattern(`nfts:${ethereumAddress}*`);
 
     res.json({
       success: true,
       data: {
-        message: `NFT ${isListed ? 'listed' : 'unlisted'} successfully`,
+        message: `NFT ${isListed ? 'listed' : 'unlisted'} on blockchain`,
       },
     });
   })

@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { ethers } from 'ethers';
 import { prisma } from '../config/database';
 import { authService } from '../services/auth.service';
 import { authenticate } from '../middleware/auth.middleware';
@@ -93,6 +94,102 @@ router.put(
     res.json({
       success: true,
       data: updatedUser,
+    });
+  })
+);
+
+/**
+ * PUT /api/v1/users/me/wallet
+ * Connect or update the user's Ethereum wallet
+ */
+router.put(
+  '/me/wallet',
+  validate(
+    Joi.object({
+      ethereumAddress: Joi.string()
+        .pattern(/^0x[a-fA-F0-9]{40}$/)
+        .required(),
+    })
+  ),
+  asyncHandler(async (req, res) => {
+    const { userId } = req.user!;
+    const ethereumAddress = ethers.getAddress(req.body.ethereumAddress);
+
+    const taken = await prisma.user.findFirst({
+      where: {
+        ethereumAddress,
+        NOT: { id: userId },
+      },
+      select: { id: true },
+    });
+
+    if (taken) {
+      return res.status(409).json({
+        success: false,
+        error: 'This wallet is already linked to another account',
+      });
+    }
+
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.update({
+        where: { id: userId },
+        data: { ethereumAddress },
+        select: {
+          id: true,
+          email: true,
+          username: true,
+          ethereumAddress: true,
+          firstName: true,
+          lastName: true,
+          avatar: true,
+          bio: true,
+          isActive: true,
+          isVerified: true,
+          createdAt: true,
+          lastLoginAt: true,
+        },
+      });
+
+      await tx.travelCard.updateMany({
+        where: { userId },
+        data: { ethereumAddress },
+      });
+      await tx.pointsAccount.updateMany({
+        where: { userId },
+        data: { ethereumAddress },
+      });
+      await tx.nFT.updateMany({
+        where: { userId },
+        data: { ethereumAddress },
+      });
+
+      return user;
+    });
+
+    const payload = {
+      userId: updatedUser.id,
+      ethereumAddress: updatedUser.ethereumAddress,
+      email: updatedUser.email,
+    };
+    const accessToken = authService.generateAccessToken(payload);
+    const refreshToken = authService.generateRefreshToken(payload);
+
+    await prisma.refreshToken.create({
+      data: {
+        token: refreshToken,
+        userId: updatedUser.id,
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        user: updatedUser,
+        accessToken,
+        refreshToken,
+        message: 'Wallet connected. Payouts will use this address.',
+      },
     });
   })
 );

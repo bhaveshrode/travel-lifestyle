@@ -34,7 +34,6 @@ router.post(
       });
     }
 
-    // Create card in database
     const card = await prisma.travelCard.create({
       data: {
         userId,
@@ -44,8 +43,7 @@ router.post(
       },
     });
 
-    // Create transaction record
-    await prisma.transaction.create({
+    const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'CARD_CREATE',
@@ -53,21 +51,56 @@ router.post(
         travelCardId: card.id,
         amount: BigInt(initialBalance),
         metadata: { currency },
-        txHash: 'pending',
+        txHash: `pending-${card.id}`,
       },
     });
 
-    res.status(201).json({
-      success: true,
-      data: {
-        card: {
-          ...card,
-          balance: card.balance.toString(),
-          cryptoBalance: card.cryptoBalance.toString(),
+    try {
+      const txHash = await ethereumService.createTravelCard(
+        ethereumAddress,
+        currency,
+        initialBalance
+      );
+      const [balance, cryptoBalance] = await Promise.all([
+        ethereumService.getTravelCardBalance(ethereumAddress),
+        ethereumService.getCryptoBalance(ethereumAddress),
+      ]);
+      const updated = await prisma.travelCard.update({
+        where: { id: card.id },
+        data: {
+          balance: BigInt(balance),
+          cryptoBalance: BigInt(cryptoBalance),
+          lastSyncAt: new Date(),
         },
-        message: 'Travel card created successfully. Transaction will be processed on blockchain.',
-      },
-    });
+      });
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'CONFIRMED', txHash, blockTimestamp: new Date() },
+      });
+      await cache.del(`card:${ethereumAddress}`);
+
+      return res.status(201).json({
+        success: true,
+        data: {
+          card: {
+            ...updated,
+            balance: updated.balance.toString(),
+            cryptoBalance: updated.cryptoBalance.toString(),
+          },
+          txHash,
+          message: 'Travel card created on blockchain.',
+        },
+      });
+    } catch (error: any) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'FAILED', errorMessage: error.message },
+      });
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain transaction failed',
+      });
+    }
   })
 );
 
@@ -169,7 +202,6 @@ router.post(
       });
     }
 
-    // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
         userId,
@@ -177,20 +209,48 @@ router.post(
         status: 'PENDING',
         travelCardId: card.id,
         amount: BigInt(amount),
-        txHash: 'pending',
+        txHash: `pending-load-${card.id}-${Date.now()}`,
       },
     });
 
-    // Clear cache
-    await cache.del(`card:${ethereumAddress}`);
+    try {
+      const txHash = await ethereumService.loadFunds(ethereumAddress, amount);
+      const [balance, cryptoBalance] = await Promise.all([
+        ethereumService.getTravelCardBalance(ethereumAddress),
+        ethereumService.getCryptoBalance(ethereumAddress),
+      ]);
+      await prisma.travelCard.update({
+        where: { id: card.id },
+        data: {
+          balance: BigInt(balance),
+          cryptoBalance: BigInt(cryptoBalance),
+          lastSyncAt: new Date(),
+        },
+      });
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'CONFIRMED', txHash, blockTimestamp: new Date() },
+      });
+      await cache.del(`card:${ethereumAddress}`);
 
-    res.json({
-      success: true,
-      data: {
-        transactionId: transaction.id,
-        message: 'Funds loading initiated. Transaction will be processed on blockchain.',
-      },
-    });
+      return res.json({
+        success: true,
+        data: {
+          transactionId: transaction.id,
+          txHash,
+          message: 'Funds loaded on blockchain.',
+        },
+      });
+    } catch (error: any) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'FAILED', errorMessage: error.message },
+      });
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain transaction failed',
+      });
+    }
   })
 );
 
@@ -223,7 +283,6 @@ router.post(
       });
     }
 
-    // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
         userId,
@@ -231,20 +290,48 @@ router.post(
         status: 'PENDING',
         travelCardId: card.id,
         amount: BigInt(amount),
-        txHash: 'pending',
+        txHash: `pending-convert-${card.id}-${Date.now()}`,
       },
     });
 
-    // Clear cache
-    await cache.del(`card:${ethereumAddress}`);
+    try {
+      const txHash = await ethereumService.convertToCrypto(ethereumAddress, amount);
+      const [balance, cryptoBalance] = await Promise.all([
+        ethereumService.getTravelCardBalance(ethereumAddress),
+        ethereumService.getCryptoBalance(ethereumAddress),
+      ]);
+      await prisma.travelCard.update({
+        where: { id: card.id },
+        data: {
+          balance: BigInt(balance),
+          cryptoBalance: BigInt(cryptoBalance),
+          lastSyncAt: new Date(),
+        },
+      });
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'CONFIRMED', txHash, blockTimestamp: new Date() },
+      });
+      await cache.del(`card:${ethereumAddress}`);
 
-    res.json({
-      success: true,
-      data: {
-        transactionId: transaction.id,
-        message: 'Conversion initiated. Transaction will be processed on blockchain.',
-      },
-    });
+      return res.json({
+        success: true,
+        data: {
+          transactionId: transaction.id,
+          txHash,
+          message: 'Conversion completed on blockchain.',
+        },
+      });
+    } catch (error: any) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'FAILED', errorMessage: error.message },
+      });
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain transaction failed',
+      });
+    }
   })
 );
 

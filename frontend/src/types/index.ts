@@ -174,7 +174,7 @@ export interface RegisterForm {
   email: string;
   username: string;
   password: string;
-  ethereumAddress: string;
+  ethereumAddress?: string;
 }
 
 export interface CreateCardForm {

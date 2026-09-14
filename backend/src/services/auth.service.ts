@@ -1,8 +1,10 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { ethers } from 'ethers';
 import { config } from '../config';
 import { prisma } from '../config/database';
 import { logger } from '../config/logger';
+import { ApiError } from '../middleware/error.middleware';
 
 export interface JwtPayload {
   userId: string;
@@ -62,34 +64,36 @@ export class AuthService {
     email: string;
     username: string;
     password: string;
-    ethereumAddress: string;
+    ethereumAddress?: string;
   }) {
     try {
-      // Check if user exists
+      const ethereumAddress =
+        data.ethereumAddress && ethers.isAddress(data.ethereumAddress)
+          ? ethers.getAddress(data.ethereumAddress)
+          : ethers.Wallet.createRandom().address;
+
       const existingUser = await prisma.user.findFirst({
         where: {
           OR: [
             { email: data.email },
             { username: data.username },
-            { ethereumAddress: data.ethereumAddress },
+            { ethereumAddress },
           ],
         },
       });
 
       if (existingUser) {
-        throw new Error('User already exists');
+        throw new ApiError(409, 'User already exists');
       }
 
-      // Hash password
       const passwordHash = await this.hashPassword(data.password);
 
-      // Create user
       const user = await prisma.user.create({
         data: {
           email: data.email,
           username: data.username,
           passwordHash,
-          ethereumAddress: data.ethereumAddress,
+          ethereumAddress,
         },
         select: {
           id: true,
@@ -143,14 +147,13 @@ export class AuthService {
       });
 
       if (!user) {
-        throw new Error('Invalid credentials');
+        throw new ApiError(401, 'Invalid email or password');
       }
 
-      // Check password
       const isValidPassword = await this.comparePassword(password, user.passwordHash);
 
       if (!isValidPassword) {
-        throw new Error('Invalid credentials');
+        throw new ApiError(401, 'Invalid email or password');
       }
 
       // Update last login

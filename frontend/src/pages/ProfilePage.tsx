@@ -1,13 +1,15 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import api from '@/services/api';
+import { User, UserStats } from '@/types';
 import { FaUser, FaSave, FaKey, FaTrash } from 'react-icons/fa';
+import WalletConnectButton from '@/components/WalletConnectButton';
 import toast from 'react-hot-toast';
 
 export default function ProfilePage() {
   const { user, logout } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<UserStats | null>(null);
 
   // Profile form
   const [firstName, setFirstName] = useState('');
@@ -38,8 +40,8 @@ export default function ProfilePage() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get<{ success: boolean; data: any }>('/users/me/stats');
-      setStats(response.data.data);
+      const response = await api.get<UserStats>('/users/me/stats');
+      setStats(response.data);
     } catch (error: any) {
       console.error('Failed to load stats:', error);
     }
@@ -58,8 +60,8 @@ export default function ProfilePage() {
       toast.success('Profile updated successfully!');
 
       // Refresh user data
-      const response = await api.get('/users/me');
-      useAuthStore.setState({ user: response.data.data });
+      const response = await api.get<User>('/users/me');
+      useAuthStore.setState({ user: response.data });
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to update profile');
     } finally {
@@ -207,13 +209,14 @@ export default function ProfilePage() {
             <p className="text-xs text-gray-500 mt-1">Username cannot be changed</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ethereum Address</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Ethereum Wallet</label>
             <input
               type="text"
-              value={user.ethereumAddress}
+              value={user.ethereumAddress || ''}
               disabled
-              className="input bg-gray-50 font-mono text-sm"
+              className="input bg-gray-50 font-mono text-sm mb-3"
             />
+            <WalletConnectButton />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Bio</label>

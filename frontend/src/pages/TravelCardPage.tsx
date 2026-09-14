@@ -4,6 +4,8 @@ import api from '@/services/api';
 import { TravelCard } from '@/types';
 import { FaWallet, FaExchangeAlt, FaPlus } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import WalletConnectButton from '@/components/WalletConnectButton';
+import { shortenAddress } from '@/services/wallet';
 
 export default function TravelCardPage() {
   const { user } = useAuthStore();
@@ -30,8 +32,8 @@ export default function TravelCardPage() {
   const fetchCard = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get<{ success: boolean; data: TravelCard }>('/cards/my');
-      setCard(response.data.data);
+      const response = await api.get<TravelCard>('/cards/my');
+      setCard(response.data);
     } catch (error: any) {
       if (error.response?.status !== 404) {
         toast.error('Failed to load travel card');
@@ -296,9 +298,16 @@ export default function TravelCardPage() {
                 <p className="text-sm text-gray-600">
                   You will receive approximately{' '}
                   <span className="font-semibold text-blue-600">
-                    {convertAmount ? (parseFloat(convertAmount) / 10).toFixed(4) : '0.0000'} APT
+                    {convertAmount ? (parseFloat(convertAmount) / 10).toFixed(4) : '0.0000'} ETH
                   </span>
                 </p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-3 space-y-2">
+                <p className="text-sm font-medium text-gray-700">Payout wallet</p>
+                <p className="text-xs font-mono text-gray-600">
+                  {user?.ethereumAddress ? shortenAddress(user.ethereumAddress) : 'No wallet connected'}
+                </p>
+                <WalletConnectButton compact />
               </div>
               <div className="flex gap-3 mt-6">
                 <button

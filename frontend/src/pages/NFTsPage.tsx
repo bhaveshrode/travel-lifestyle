@@ -28,11 +28,8 @@ export default function NFTsPage() {
   const fetchNFTs = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get<{
-        success: boolean;
-        data: { nfts: NFT[]; pagination: any };
-      }>('/nfts');
-      setNfts(response.data.data.nfts);
+      const response = await api.get<{ nfts: NFT[] }>('/nfts');
+      setNfts(response.data.nfts);
     } catch (error: any) {
       toast.error('Failed to load NFTs');
     } finally {

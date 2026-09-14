@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '@/store/authStore';
+import { connectWallet, isWalletAvailable, shortenAddress } from '@/services/wallet';
 import toast from 'react-hot-toast';
 import { FaPlane, FaEnvelope, FaLock, FaUser, FaWallet } from 'react-icons/fa';
 
@@ -37,12 +38,12 @@ export default function RegisterPage() {
         email: formData.email,
         username: formData.username,
         password: formData.password,
-        ethereumAddress: formData.ethereumAddress,
+        ethereumAddress: formData.ethereumAddress || undefined,
       });
       toast.success('Account created successfully!');
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Registration failed');
+      toast.error(error.response?.data?.error || error.message || 'Registration failed');
     } finally {
       setIsLoading(false);
     }
@@ -55,12 +56,15 @@ export default function RegisterPage() {
     });
   };
 
-  const generateDemoAddress = () => {
-    const randomHex = Array.from({ length: 40 }, () =>
-      Math.floor(Math.random() * 16).toString(16)
-    ).join('');
-    setFormData({ ...formData, ethereumAddress: `0x${randomHex}` });
-    toast.success('Demo address generated!');
+  const handleConnectWallet = async () => {
+    try {
+      toast.loading('Opening MetaMask...', { id: 'wallet' });
+      const address = await connectWallet();
+      setFormData({ ...formData, ethereumAddress: address });
+      toast.success(`Connected ${shortenAddress(address)}`, { id: 'wallet' });
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to connect wallet', { id: 'wallet' });
+    }
   };
 
   return (
@@ -150,11 +154,10 @@ export default function RegisterPage() {
               />
             </div>
 
-            {/* Ethereum Address */}
             <div>
               <label className="label">
                 <FaWallet className="inline mr-2" />
-                Ethereum Wallet Address
+                Ethereum Wallet (optional)
               </label>
               <div className="flex space-x-2">
                 <input
@@ -163,19 +166,22 @@ export default function RegisterPage() {
                   value={formData.ethereumAddress}
                   onChange={handleChange}
                   className="input flex-1"
-                  placeholder="0x..."
-                  required
+                  placeholder="0x... (optional)"
                 />
                 <button
                   type="button"
-                  onClick={generateDemoAddress}
+                  onClick={handleConnectWallet}
                   className="btn btn-secondary whitespace-nowrap"
                 >
-                  Demo
+                  {formData.ethereumAddress
+                    ? shortenAddress(formData.ethereumAddress)
+                    : isWalletAvailable()
+                      ? 'Connect'
+                      : 'Skip'}
                 </button>
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Use your MetaMask or Ethereum wallet address
+                You can connect MetaMask later from the dashboard
               </p>
             </div>
 

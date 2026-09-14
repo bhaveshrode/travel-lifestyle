@@ -39,7 +39,17 @@ export const config = {
 
   // CORS
   cors: {
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      if (!origin) {
+        callback(null, true);
+        return;
+      }
+      const allowed =
+        origin === 'http://localhost:3000' ||
+        origin === process.env.CORS_ORIGIN ||
+        origin.endsWith('.monkeycode-ai.live');
+      callback(null, allowed);
+    },
   },
 
   // Rate Limiting

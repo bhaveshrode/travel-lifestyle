@@ -1,414 +1,200 @@
-import { ethers } from 'ethers';
+import { Contract, JsonRpcProvider, ethers } from 'ethers';
 import { logger } from '../config/logger';
+import { config } from '../config';
+import travelCardAbi from '../abis/DigitalTravelCard.json';
+import nftsAbi from '../abis/ExperienceNFTs.json';
+import pointsAbi from '../abis/TravelPointsExchange.json';
+import {
+  getUserSigner,
+  parseEvent,
+  requireAddress,
+  sendTx,
+  toAmount,
+} from './ethereum.helpers';
 
-/**
- * Ethereum Service
- * Handles interactions with Ethereum blockchain and smart contracts
- */
 class EthereumService {
-  private provider: ethers.JsonRpcProvider | null = null;
-  private wallet: ethers.Wallet | null = null;
-
-  // Contract addresses (will be set after deployment)
-  private travelCardAddress: string = '';
-  private nftsAddress: string = '';
-  private pointsExchangeAddress: string = '';
-
-  // Contract instances
-  private travelCardContract: ethers.Contract | null = null;
-  private nftsContract: ethers.Contract | null = null;
-  private pointsContract: ethers.Contract | null = null;
+  private provider: JsonRpcProvider | null = null;
+  private travelCardAddress = config.ethereum.travelCardAddress;
+  private nftsAddress = config.ethereum.nftsAddress;
+  private pointsAddress = config.ethereum.pointsAddress;
 
   constructor() {
     this.initializeProvider();
   }
 
-  /**
-   * Initialize Ethereum provider and wallet
-   */
   private initializeProvider(): void {
     try {
-      const rpcUrl = process.env.ETHEREUM_RPC_URL || 'http://127.0.0.1:8545';
-      this.provider = new ethers.JsonRpcProvider(rpcUrl);
-
-      if (process.env.PRIVATE_KEY) {
-        this.wallet = new ethers.Wallet(process.env.PRIVATE_KEY, this.provider);
-        logger.info('Ethereum wallet initialized');
-      } else {
-        logger.warn('No PRIVATE_KEY provided - blockchain transactions will fail');
-      }
-
-      logger.info(`Ethereum provider initialized: ${rpcUrl}`);
+      this.provider = new JsonRpcProvider(config.ethereum.rpcUrl || 'http://127.0.0.1:8545');
+      logger.info(`Ethereum provider initialized: ${config.ethereum.rpcUrl}`);
     } catch (error: any) {
       logger.error('Failed to initialize Ethereum provider:', error.message);
     }
   }
 
-  /**
-   * Set contract addresses after deployment
-   */
-  public setContractAddresses(
-    travelCard: string,
-    nfts: string,
-    points: string
-  ): void {
+  public setContractAddresses(travelCard: string, nfts: string, points: string): void {
     this.travelCardAddress = travelCard;
     this.nftsAddress = nfts;
-    this.pointsExchangeAddress = points;
-    logger.info('Contract addresses set:', {
-      travelCard,
-      nfts,
-      points,
-    });
+    this.pointsAddress = points;
   }
 
-  /**
-   * Get contract instance
-   */
-  private getContract(address: string, abi: any): ethers.Contract {
-    if (!this.wallet) {
-      throw new Error('Wallet not initialized');
-    }
-    return new ethers.Contract(address, abi, this.wallet);
-  }
-
-  /**
-   * Convert amount to wei
-   */
   public toWei(amount: string | number): bigint {
     return ethers.parseEther(amount.toString());
   }
 
-  /**
-   * Convert wei to ether
-   */
   public fromWei(amount: bigint): string {
     return ethers.formatEther(amount);
   }
 
-  // ============ Digital Travel Card Functions ============
-
-  /**
-   * Create travel card on blockchain
-   */
-  async createTravelCard(
-    userAddress: string,
-    currency: string,
-    initialBalance: string
-  ): Promise<string> {
-    try {
-      logger.info(`Creating travel card for ${userAddress}`);
-
-      // Simulated for now - in production, call actual contract
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`${userAddress}-${Date.now()}`)
-      );
-
-      logger.info(`Travel card created: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to create travel card:', error.message);
-      throw error;
-    }
+  public generateAddress(): string {
+    return ethers.Wallet.createRandom().address;
   }
 
-  /**
-   * Load funds to travel card
-   */
-  async loadFunds(
-    userAddress: string,
-    amount: string
-  ): Promise<string> {
-    try {
-      logger.info(`Loading funds for ${userAddress}: ${amount}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`load-${userAddress}-${Date.now()}`)
-      );
-
-      logger.info(`Funds loaded: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to load funds:', error.message);
-      throw error;
-    }
+  public isValidAddress(address: string): boolean {
+    return ethers.isAddress(address);
   }
 
-  /**
-   * Convert fiat to crypto
-   */
-  async convertToCrypto(
-    userAddress: string,
-    amount: string
-  ): Promise<string> {
-    try {
-      logger.info(`Converting to crypto for ${userAddress}: ${amount}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`convert-${userAddress}-${Date.now()}`)
-      );
-
-      logger.info(`Conversion complete: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to convert to crypto:', error.message);
-      throw error;
+  private requireProvider(): JsonRpcProvider {
+    if (!this.provider) {
+      throw new Error('Ethereum provider not initialized');
     }
+    return this.provider;
   }
 
-  // ============ NFT Functions ============
+  private read(address: string, abi: any): Contract {
+    if (!address) {
+      throw new Error('Contract address is not configured');
+    }
+    return new Contract(address, abi, this.requireProvider());
+  }
 
-  /**
-   * Mint NFT on blockchain
-   */
+  private async write(address: string, abi: any, userAddress: string): Promise<Contract> {
+    const signer = await getUserSigner(this.requireProvider(), userAddress);
+    return new Contract(address, abi, signer);
+  }
+
+  async createTravelCard(userAddress: string, currency: string, initialBalance: string | number) {
+    const c = await this.write(this.travelCardAddress, travelCardAbi, userAddress);
+    return sendTx(c.createCard(currency, toAmount(initialBalance)));
+  }
+
+  async loadFunds(userAddress: string, amount: string | number) {
+    const c = await this.write(this.travelCardAddress, travelCardAbi, userAddress);
+    return sendTx(c.loadFunds(toAmount(amount)));
+  }
+
+  async convertToCrypto(userAddress: string, amount: string | number) {
+    const c = await this.write(this.travelCardAddress, travelCardAbi, userAddress);
+    return sendTx(c.convertToCrypto(toAmount(amount)));
+  }
+
   async mintNFT(
     ownerAddress: string,
     description: string,
     category: string,
     location: string,
-    price: string,
+    price: string | number,
     tokenURI: string
-  ): Promise<{ txHash: string; tokenId: string }> {
-    try {
-      logger.info(`Minting NFT for ${ownerAddress}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`mint-${ownerAddress}-${Date.now()}`)
-      );
-      const tokenId = Math.floor(Math.random() * 1000000).toString();
-
-      logger.info(`NFT minted: ${txHash}, tokenId: ${tokenId}`);
-      return { txHash, tokenId };
-    } catch (error: any) {
-      logger.error('Failed to mint NFT:', error.message);
-      throw error;
+  ) {
+    const c = await this.write(this.nftsAddress, nftsAbi, ownerAddress);
+    const tx = await c.mintNFT(description, category || '', location || '', toAmount(price), tokenURI || '');
+    const receipt = await tx.wait();
+    if (!receipt) {
+      throw new Error('NFT mint was not mined');
     }
+    const parsed = parseEvent(receipt, c, 'NFTMinted');
+    return { txHash: receipt.hash, tokenId: parsed?.args?.tokenId?.toString() || '0' };
   }
 
-  /**
-   * List NFT for sale
-   */
-  async listNFT(
-    tokenId: string,
-    price: string
-  ): Promise<string> {
-    try {
-      logger.info(`Listing NFT ${tokenId} for ${price}`);
+  async listNFT(ownerAddress: string, tokenId: string, price: string | number) {
+    const c = await this.write(this.nftsAddress, nftsAbi, ownerAddress);
+    return sendTx(c.listNFT(BigInt(tokenId), toAmount(price)));
+  }
 
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`list-${tokenId}-${Date.now()}`)
-      );
+  async unlistNFT(ownerAddress: string, tokenId: string) {
+    const c = await this.write(this.nftsAddress, nftsAbi, ownerAddress);
+    return sendTx(c.unlistNFT(BigInt(tokenId)));
+  }
 
-      logger.info(`NFT listed: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to list NFT:', error.message);
-      throw error;
+  async offerNFTTransfer(tokenId: string, fromAddress: string, toAddress: string) {
+    const c = await this.write(this.nftsAddress, nftsAbi, fromAddress);
+    return sendTx(c.offerNFTTransfer(BigInt(tokenId), requireAddress(toAddress, 'recipient')));
+  }
+
+  async claimNFTTransfer(tokenId: string, recipientAddress: string) {
+    const c = await this.write(this.nftsAddress, nftsAbi, recipientAddress);
+    return sendTx(c.claimNFTTransfer(BigInt(tokenId)));
+  }
+
+  async cancelNFTTransfer(tokenId: string, ownerAddress: string) {
+    const c = await this.write(this.nftsAddress, nftsAbi, ownerAddress);
+    return sendTx(c.cancelNFTTransfer(BigInt(tokenId)));
+  }
+
+  async createPointsAccount(userAddress: string, initialPoints: number) {
+    const c = await this.write(this.pointsAddress, pointsAbi, userAddress);
+    return sendTx(c.createAccount(toAmount(initialPoints)));
+  }
+
+  async addPoints(userAddress: string, amount: number, reason: string) {
+    const c = await this.write(this.pointsAddress, pointsAbi, userAddress);
+    return sendTx(c.addPoints(toAmount(amount), reason || ''));
+  }
+
+  async swapPoints(userAddress: string, pointsAmount: number) {
+    const c = await this.write(this.pointsAddress, pointsAbi, userAddress);
+    const tx = await c.swapPointsForCrypto(toAmount(pointsAmount));
+    const receipt = await tx.wait();
+    if (!receipt) {
+      throw new Error('Points swap was not mined');
     }
+    const parsed = parseEvent(receipt, c, 'PointsSwapped');
+    return { txHash: receipt.hash, cryptoEarned: parsed?.args?.cryptoAmount?.toString() || '0' };
   }
 
-  /**
-   * Offer NFT transfer
-   */
-  async offerNFTTransfer(
-    tokenId: string,
-    fromAddress: string,
-    toAddress: string
-  ): Promise<string> {
-    try {
-      logger.info(`Offering NFT ${tokenId} transfer from ${fromAddress} to ${toAddress}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`offer-${tokenId}-${Date.now()}`)
-      );
-
-      logger.info(`NFT transfer offered: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to offer NFT transfer:', error.message);
-      throw error;
-    }
+  async getGasPrice() {
+    return (await this.requireProvider().getFeeData()).gasPrice || BigInt(0);
   }
 
-  /**
-   * Claim NFT transfer
-   */
-  async claimNFTTransfer(
-    tokenId: string,
-    recipientAddress: string
-  ): Promise<string> {
-    try {
-      logger.info(`Claiming NFT ${tokenId} by ${recipientAddress}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`claim-${tokenId}-${Date.now()}`)
-      );
-
-      logger.info(`NFT transfer claimed: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to claim NFT transfer:', error.message);
-      throw error;
-    }
+  async getTransactionReceipt(txHash: string) {
+    return this.requireProvider().getTransactionReceipt(txHash);
   }
 
-  // ============ Points Functions ============
-
-  /**
-   * Create points account
-   */
-  async createPointsAccount(
-    userAddress: string,
-    initialPoints: number
-  ): Promise<string> {
-    try {
-      logger.info(`Creating points account for ${userAddress}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`points-${userAddress}-${Date.now()}`)
-      );
-
-      logger.info(`Points account created: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to create points account:', error.message);
-      throw error;
-    }
+  async getBlockNumber() {
+    return this.requireProvider().getBlockNumber();
   }
 
-  /**
-   * Add points to account
-   */
-  async addPoints(
-    userAddress: string,
-    amount: number,
-    reason: string
-  ): Promise<string> {
-    try {
-      logger.info(`Adding ${amount} points for ${userAddress}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`add-points-${userAddress}-${Date.now()}`)
-      );
-
-      logger.info(`Points added: ${txHash}`);
-      return txHash;
-    } catch (error: any) {
-      logger.error('Failed to add points:', error.message);
-      throw error;
-    }
+  async getTravelCardBalance(userAddress: string) {
+    const address = requireAddress(userAddress, 'user');
+    const c = this.read(this.travelCardAddress, travelCardAbi);
+    if (!(await c.checkCardExists(address))) return '0';
+    const [fiatBalance] = await c.getBalance(address);
+    return fiatBalance.toString();
   }
 
-  /**
-   * Swap points for crypto
-   */
-  async swapPoints(
-    userAddress: string,
-    pointsAmount: number
-  ): Promise<{ txHash: string; cryptoEarned: string }> {
-    try {
-      logger.info(`Swapping ${pointsAmount} points for ${userAddress}`);
-
-      // Simulated for now
-      const txHash = ethers.keccak256(
-        ethers.toUtf8Bytes(`swap-${userAddress}-${Date.now()}`)
-      );
-      const cryptoEarned = (pointsAmount / 100).toString(); // 100:1 rate
-
-      logger.info(`Points swapped: ${txHash}, earned: ${cryptoEarned}`);
-      return { txHash, cryptoEarned };
-    } catch (error: any) {
-      logger.error('Failed to swap points:', error.message);
-      throw error;
-    }
+  async getCryptoBalance(userAddress: string) {
+    const address = requireAddress(userAddress, 'user');
+    const c = this.read(this.travelCardAddress, travelCardAbi);
+    if (!(await c.checkCardExists(address))) return '0';
+    const [, cryptoBalance] = await c.getBalance(address);
+    return cryptoBalance.toString();
   }
 
-  // ============ Utility Functions ============
-
-  /**
-   * Get current gas price
-   */
-  async getGasPrice(): Promise<bigint> {
-    if (!this.provider) {
-      throw new Error('Provider not initialized');
-    }
-    const feeData = await this.provider.getFeeData();
-    return feeData.gasPrice || BigInt(0);
+  async getPointsBalance(userAddress: string) {
+    const address = requireAddress(userAddress, 'user');
+    const c = this.read(this.pointsAddress, pointsAbi);
+    if (!(await c.checkAccountExists(address))) return '0';
+    return (await c.getPointsBalance(address)).toString();
   }
 
-  /**
-   * Get transaction receipt
-   */
-  async getTransactionReceipt(txHash: string): Promise<any> {
-    if (!this.provider) {
-      throw new Error('Provider not initialized');
-    }
-    return await this.provider.getTransactionReceipt(txHash);
+  async getPointsCryptoValue(userAddress: string) {
+    const address = requireAddress(userAddress, 'user');
+    const c = this.read(this.pointsAddress, pointsAbi);
+    if (!(await c.checkAccountExists(address))) return '0';
+    return (await c.getCryptoValue(address)).toString();
   }
 
-  /**
-   * Get current block number
-   */
-  async getBlockNumber(): Promise<number> {
-    if (!this.provider) {
-      throw new Error('Provider not initialized');
-    }
-    return await this.provider.getBlockNumber();
-  }
-
-  /**
-   * Generate Ethereum address (for demo purposes)
-   */
-  generateAddress(): string {
-    const wallet = ethers.Wallet.createRandom();
-    return wallet.address;
-  }
-
-  /**
-   * Validate Ethereum address
-   */
-  isValidAddress(address: string): boolean {
-    return ethers.isAddress(address);
-  }
-
-  /**
-   * Get travel card fiat balance from blockchain
-   */
-  async getTravelCardBalance(userAddress: string): Promise<string> {
-    logger.info(`Fetching travel card balance for ${userAddress}`);
-    return '0';
-  }
-
-  /**
-   * Get travel card crypto balance from blockchain
-   */
-  async getCryptoBalance(userAddress: string): Promise<string> {
-    logger.info(`Fetching crypto balance for ${userAddress}`);
-    return '0';
-  }
-
-  /**
-   * Get loyalty points balance from blockchain
-   */
-  async getPointsBalance(userAddress: string): Promise<string> {
-    logger.info(`Fetching points balance for ${userAddress}`);
-    return '0';
-  }
-
-  /**
-   * Get points account crypto value from blockchain
-   */
-  async getPointsCryptoValue(userAddress: string): Promise<string> {
-    logger.info(`Fetching points crypto value for ${userAddress}`);
-    return '0';
+  async getExchangeRate() {
+    return (await this.read(this.pointsAddress, pointsAbi).getExchangeRate()).toString();
   }
 }
 

@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
-import { Transaction } from '@/types';
+import { Pagination, Transaction, TransactionStats } from '@/types';
 import { FaHistory, FaDownload, FaFilter, FaCheckCircle, FaClock, FaTimesCircle } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 
 export default function TransactionsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [stats, setStats] = useState<any>(null);
+  const [stats, setStats] = useState<TransactionStats | null>(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
@@ -24,17 +24,17 @@ export default function TransactionsPage() {
   const fetchTransactions = async () => {
     try {
       setIsLoading(true);
-      const params: any = { page, limit: 10 };
+      const params: Record<string, string | number> = { page, limit: 10 };
       if (typeFilter) params.type = typeFilter;
       if (statusFilter) params.status = statusFilter;
 
-      const response = await api.get<{
-        success: boolean;
-        data: { transactions: Transaction[]; pagination: any };
-      }>('/transactions', { params });
+      const response = await api.get<{ transactions: Transaction[]; pagination: Pagination }>(
+        '/transactions',
+        { params }
+      );
 
-      setTransactions(response.data.data.transactions);
-      setTotalPages(response.data.data.pagination.pages);
+      setTransactions(response.data.transactions);
+      setTotalPages(response.data.pagination.pages);
     } catch (error: any) {
       toast.error('Failed to load transactions');
     } finally {
@@ -44,8 +44,8 @@ export default function TransactionsPage() {
 
   const fetchStats = async () => {
     try {
-      const response = await api.get<{ success: boolean; data: any }>('/transactions/stats/summary');
-      setStats(response.data.data);
+      const response = await api.get<TransactionStats>('/transactions/stats/summary');
+      setStats(response.data);
     } catch (error: any) {
       console.error('Failed to load stats:', error);
     }
@@ -54,11 +54,8 @@ export default function TransactionsPage() {
   const handleExport = async () => {
     try {
       toast.loading('Exporting transactions...');
-      const response = await api.get('/transactions/export', {
-        responseType: 'blob',
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = await api.getBlob('/transactions/export');
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.setAttribute('download', `transactions-${new Date().toISOString()}.csv`);

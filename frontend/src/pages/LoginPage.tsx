@@ -4,6 +4,15 @@ import { useAuthStore } from '@/store/authStore';
 import toast from 'react-hot-toast';
 import { FaPlane, FaEnvelope, FaLock } from 'react-icons/fa';
 
+function getErrorMessage(error: any): string {
+  return (
+    error?.response?.data?.error ||
+    error?.response?.data?.message ||
+    error?.message ||
+    'Login failed'
+  );
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -21,7 +30,7 @@ export default function LoginPage() {
       toast.success('Welcome back!');
       navigate('/dashboard');
     } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Login failed');
+      toast.error(getErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -30,7 +39,6 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-white to-primary-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full">
-        {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center space-x-2 mb-4">
             <FaPlane className="text-primary-600 text-4xl" />
@@ -40,10 +48,8 @@ export default function LoginPage() {
           <p className="text-gray-600">Login to access your account</p>
         </div>
 
-        {/* Login Form */}
         <div className="card">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Email */}
             <div>
               <label className="label">
                 <FaEnvelope className="inline mr-2" />
@@ -59,7 +65,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Password */}
             <div>
               <label className="label">
                 <FaLock className="inline mr-2" />
@@ -75,7 +80,6 @@ export default function LoginPage() {
               />
             </div>
 
-            {/* Submit Button */}
             <button
               type="submit"
               disabled={isLoading}
@@ -85,7 +89,10 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Register Link */}
+          <p className="mt-4 text-xs text-gray-500 text-center">
+            Demo account: test@example.com / password123
+          </p>
+
           <div className="mt-6 text-center text-sm text-gray-600">
             Don't have an account?{' '}
             <Link to="/register" className="text-primary-600 hover:text-primary-700 font-medium">
@@ -94,7 +101,6 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Back to Home */}
         <div className="mt-4 text-center">
           <Link to="/" className="text-sm text-gray-600 hover:text-gray-900">
             ← Back to Home

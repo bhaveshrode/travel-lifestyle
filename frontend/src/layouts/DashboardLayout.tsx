@@ -12,6 +12,7 @@ import {
   FaTimes,
 } from 'react-icons/fa';
 import { useState } from 'react';
+import WalletConnectButton from '@/components/WalletConnectButton';
 
 export default function DashboardLayout() {
   const { user, logout } = useAuthStore();
@@ -57,6 +58,11 @@ export default function DashboardLayout() {
             <div className="p-6 border-b border-gray-200 hidden lg:block">
               <h1 className="text-xl font-bold text-gray-900">Travel & Lifestyle</h1>
               <p className="text-sm text-gray-600 mt-1">Welcome, {user?.username}</p>
+              {user?.ethereumAddress && (
+                <p className="text-xs text-gray-500 mt-1 font-mono">
+                  {user.ethereumAddress.slice(0, 6)}...{user.ethereumAddress.slice(-4)}
+                </p>
+              )}
             </div>
 
             {/* Navigation */}
@@ -82,7 +88,8 @@ export default function DashboardLayout() {
             </nav>
 
             {/* User Section */}
-            <div className="p-4 border-t border-gray-200">
+            <div className="p-4 border-t border-gray-200 space-y-3">
+              <WalletConnectButton compact />
               <button
                 onClick={logout}
                 className="flex items-center space-x-3 px-4 py-3 rounded-lg w-full text-red-600 hover:bg-red-50 transition-colors"

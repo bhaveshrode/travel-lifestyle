@@ -41,7 +41,10 @@ export const schemas = {
     email: Joi.string().email().required(),
     username: Joi.string().alphanum().min(3).max(30).required(),
     password: Joi.string().min(8).required(),
-    ethereumAddress: Joi.string().required(),
+    ethereumAddress: Joi.string()
+      .pattern(/^0x[a-fA-F0-9]{40}$/)
+      .optional()
+      .allow(''),
   }),
 
   login: Joi.object({
@@ -78,12 +81,12 @@ export const schemas = {
 
   offerNFT: Joi.object({
     recipientAddress: Joi.string().required(),
-    nftId: Joi.number().integer().min(0).required(),
+    nftId: Joi.number().integer().min(0).optional(),
   }),
 
   claimNFT: Joi.object({
     fromAddress: Joi.string().required(),
-    nftId: Joi.number().integer().min(0).required(),
+    nftId: Joi.number().integer().min(0).optional(),
   }),
 
   // Points schemas
@@ -97,6 +100,8 @@ export const schemas = {
   }),
 
   addPoints: Joi.object({
-    pointsToAdd: Joi.number().integer().min(1).required(),
-  }),
+    pointsToAdd: Joi.number().integer().min(1),
+    points: Joi.number().integer().min(1),
+    reason: Joi.string().allow('').optional(),
+  }).or('pointsToAdd', 'points'),
 };

@@ -34,26 +34,38 @@ router.post(
       });
     }
 
-    // Create account in database
+    let txHash: string;
+    try {
+      txHash = await ethereumService.createPointsAccount(ethereumAddress, points);
+    } catch (error: any) {
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain account creation failed',
+      });
+    }
+
+    const chainPoints = await ethereumService.getPointsBalance(ethereumAddress);
+    const chainCrypto = await ethereumService.getPointsCryptoValue(ethereumAddress);
+
     const account = await prisma.pointsAccount.create({
       data: {
         userId,
         ethereumAddress,
-        points: BigInt(points),
-        cryptoValue: BigInt(cryptoValue),
+        points: BigInt(chainPoints),
+        cryptoValue: BigInt(chainCrypto),
       },
     });
 
-    // Create transaction record
     await prisma.transaction.create({
       data: {
         userId,
         type: 'POINTS_CREATE',
-        status: 'PENDING',
+        status: 'CONFIRMED',
         pointsAccountId: account.id,
         amount: BigInt(points),
         metadata: { cryptoValue },
-        txHash: 'pending',
+        txHash,
+        blockTimestamp: new Date(),
       },
     });
 
@@ -65,7 +77,8 @@ router.post(
           points: account.points.toString(),
           cryptoValue: account.cryptoValue.toString(),
         },
-        message: 'Points account created successfully.',
+        txHash,
+        message: 'Points account created on blockchain.',
       },
     });
   })
@@ -155,7 +168,8 @@ router.post(
   '/add',
   validate(schemas.addPoints),
   asyncHandler(async (req, res) => {
-    const { pointsToAdd } = req.body;
+    const { pointsToAdd, points: pointsBody, reason } = req.body;
+    const pointsAmount = pointsToAdd ?? pointsBody;
     const { userId, ethereumAddress } = req.user!;
 
     const account = await prisma.pointsAccount.findUnique({
@@ -169,28 +183,59 @@ router.post(
       });
     }
 
-    // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
         userId,
         type: 'POINTS_ADD',
         status: 'PENDING',
         pointsAccountId: account.id,
-        amount: BigInt(pointsToAdd),
-        txHash: 'pending',
+        amount: BigInt(pointsAmount),
+        txHash: `pending-points-${account.id}-${Date.now()}`,
       },
     });
 
-    // Clear cache
-    await cache.del(`points:${ethereumAddress}`);
+    try {
+      const txHash = await ethereumService.addPoints(
+        ethereumAddress,
+        pointsAmount,
+        reason || ''
+      );
+      const [chainPoints, chainCrypto] = await Promise.all([
+        ethereumService.getPointsBalance(ethereumAddress),
+        ethereumService.getPointsCryptoValue(ethereumAddress),
+      ]);
+      await prisma.pointsAccount.update({
+        where: { id: account.id },
+        data: {
+          points: BigInt(chainPoints),
+          cryptoValue: BigInt(chainCrypto),
+          lastSyncAt: new Date(),
+        },
+      });
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'CONFIRMED', txHash, blockTimestamp: new Date() },
+      });
+      await cache.del(`points:${ethereumAddress}`);
 
-    res.json({
-      success: true,
-      data: {
-        transactionId: transaction.id,
-        message: 'Points addition initiated. Transaction will be processed on blockchain.',
-      },
-    });
+      return res.json({
+        success: true,
+        data: {
+          transactionId: transaction.id,
+          txHash,
+          message: 'Points added on blockchain.',
+        },
+      });
+    } catch (error: any) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'FAILED', errorMessage: error.message },
+      });
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain transaction failed',
+      });
+    }
   })
 );
 
@@ -226,7 +271,6 @@ router.post(
     // Calculate crypto value (default rate: 100 points = 1 crypto)
     const cryptoEarned = Math.floor(pointsToSwap / 100);
 
-    // Create transaction record
     const transaction = await prisma.transaction.create({
       data: {
         userId,
@@ -239,23 +283,60 @@ router.post(
           cryptoEarned,
           exchangeRate: 100,
         },
-        txHash: 'pending',
+        txHash: `pending-swap-${account.id}-${Date.now()}`,
       },
     });
 
-    // Clear cache
-    await cache.del(`points:${ethereumAddress}`);
+    try {
+      const swap = await ethereumService.swapPoints(ethereumAddress, pointsToSwap);
+      const [chainPoints, chainCrypto] = await Promise.all([
+        ethereumService.getPointsBalance(ethereumAddress),
+        ethereumService.getPointsCryptoValue(ethereumAddress),
+      ]);
+      await prisma.pointsAccount.update({
+        where: { id: account.id },
+        data: {
+          points: BigInt(chainPoints),
+          cryptoValue: BigInt(chainCrypto),
+          lastSyncAt: new Date(),
+        },
+      });
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: 'CONFIRMED',
+          txHash: swap.txHash,
+          blockTimestamp: new Date(),
+          metadata: {
+            pointsSwapped: pointsToSwap,
+            cryptoEarned: swap.cryptoEarned,
+            exchangeRate: 100,
+          },
+        },
+      });
+      await cache.del(`points:${ethereumAddress}`);
 
-    res.json({
-      success: true,
-      data: {
-        transactionId: transaction.id,
-        pointsSwapped: pointsToSwap,
-        cryptoEarned,
-        exchangeRate: 100,
-        message: 'Points swap initiated. Transaction will be processed on blockchain.',
-      },
-    });
+      return res.json({
+        success: true,
+        data: {
+          transactionId: transaction.id,
+          txHash: swap.txHash,
+          pointsSwapped: pointsToSwap,
+          cryptoEarned: swap.cryptoEarned,
+          exchangeRate: 100,
+          message: 'Points swapped on blockchain.',
+        },
+      });
+    } catch (error: any) {
+      await prisma.transaction.update({
+        where: { id: transaction.id },
+        data: { status: 'FAILED', errorMessage: error.message },
+      });
+      return res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain transaction failed',
+      });
+    }
   })
 );
 
@@ -265,11 +346,8 @@ router.post(
  */
 router.get(
   '/exchange-rate',
-  asyncHandler(async (req, res) => {
-    const { rateOwner } = req.query;
-
-    // Try cache first
-    const cacheKey = `exchange-rate:${rateOwner || 'default'}`;
+  asyncHandler(async (_req, res) => {
+    const cacheKey = 'exchange-rate:default';
     const cached = await cache.get(cacheKey);
 
     if (cached) {
@@ -281,16 +359,10 @@ router.get(
     }
 
     try {
-      let rate;
-      if (rateOwner) {
-        rate = await ethereumService.getPointsBalance(rateOwner as string);
-      } else {
-        // Default rate
-        rate = 100; // 100 points = 1 crypto unit
-      }
+      const rate = await ethereumService.getExchangeRate();
 
       const result = {
-        pointsPerCrypto: rate,
+        pointsPerCrypto: Number(rate),
         description: `${rate} points = 1 crypto unit`,
       };
 

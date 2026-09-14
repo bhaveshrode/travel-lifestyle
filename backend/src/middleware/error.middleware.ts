@@ -33,6 +33,14 @@ export const errorHandler = (
     statusCode = err.statusCode;
     message = err.message;
     isOperational = err.isOperational;
+  } else if (err.message === 'Invalid credentials' || err.message === 'Invalid email or password') {
+    statusCode = 401;
+    message = 'Invalid email or password';
+    isOperational = true;
+  } else if (err.message === 'User already exists') {
+    statusCode = 409;
+    message = err.message;
+    isOperational = true;
   } else if (err.name === 'ValidationError') {
     statusCode = 400;
     message = err.message;

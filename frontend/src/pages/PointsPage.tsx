@@ -3,8 +3,12 @@ import api from '@/services/api';
 import { PointsAccount } from '@/types';
 import { FaCoins, FaExchangeAlt, FaPlus, FaHistory } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
+import WalletConnectButton from '@/components/WalletConnectButton';
+import { shortenAddress } from '@/services/wallet';
 
 export default function PointsPage() {
+  const { user } = useAuthStore();
   const [account, setAccount] = useState<PointsAccount | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -30,13 +34,11 @@ export default function PointsPage() {
     try {
       setIsLoading(true);
       const [accountRes, statsRes] = await Promise.all([
-        api.get<{ success: boolean; data: PointsAccount }>('/points/my'),
-        api
-          .get<{ success: boolean; data: any }>('/points/stats')
-          .catch(() => ({ data: { data: null } })),
+        api.get<PointsAccount>('/points/my'),
+        api.get<Record<string, unknown>>('/points/stats').catch(() => ({ data: null })),
       ]);
-      setAccount(accountRes.data.data);
-      setStats(statsRes.data.data);
+      setAccount(accountRes.data);
+      setStats(statsRes.data);
     } catch (error: any) {
       if (error.response?.status !== 404) {
         toast.error('Failed to load points account');
@@ -338,9 +340,16 @@ export default function PointsPage() {
                 <div className="flex justify-between text-sm pt-2 border-t border-blue-200">
                   <span className="text-gray-600">You will receive:</span>
                   <span className="font-semibold text-blue-600">
-                    {estimatedCrypto.toFixed(4)} APT
+                    {estimatedCrypto.toFixed(4)} ETH
                   </span>
                 </div>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-3 space-y-2">
+                <p className="text-sm font-medium text-gray-700">Payout wallet</p>
+                <p className="text-xs font-mono text-gray-600">
+                  {user?.ethereumAddress ? shortenAddress(user.ethereumAddress) : 'No wallet connected'}
+                </p>
+                <WalletConnectButton compact />
               </div>
               <div className="flex gap-3 mt-6">
                 <button

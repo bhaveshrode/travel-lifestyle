@@ -1,7 +1,24 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance, AxiosRequestConfig } from 'axios';
 import { ApiResponse } from '@/types';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+function resolveApiUrl(): string {
+  const configured = import.meta.env.VITE_API_URL;
+  if (!configured) {
+    return '/api/v1';
+  }
+
+  try {
+    const url = new URL(configured, window.location.origin);
+    if (url.hostname === 'localhost' || url.hostname === '127.0.0.1') {
+      return '/api/v1';
+    }
+    return configured;
+  } catch {
+    return configured.startsWith('/') ? configured : '/api/v1';
+  }
+}
+
+const API_URL = resolveApiUrl();
 
 class ApiClient {
   private client: AxiosInstance;
@@ -30,8 +47,9 @@ class ApiClient {
     this.client.interceptors.response.use(
       (response) => response,
       async (error: AxiosError) => {
-        if (error.response?.status === 401) {
-          // Try to refresh token
+        const requestUrl = error.config?.url || '';
+        const isAuthRequest = requestUrl.includes('/auth/login') || requestUrl.includes('/auth/register');
+        if (error.response?.status === 401 && !isAuthRequest) {
           const refreshToken = localStorage.getItem('refreshToken');
           if (refreshToken) {
             try {
@@ -62,8 +80,13 @@ class ApiClient {
     );
   }
 
-  async get<T>(url: string): Promise<ApiResponse<T>> {
-    const response = await this.client.get<ApiResponse<T>>(url);
+  async get<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    const response = await this.client.get<ApiResponse<T>>(url, config);
+    return response.data;
+  }
+
+  async getBlob(url: string, config?: AxiosRequestConfig): Promise<Blob> {
+    const response = await this.client.get<Blob>(url, { ...config, responseType: 'blob' });
     return response.data;
   }
 
@@ -79,10 +102,11 @@ class ApiClient {
     return response.data;
   }
 
-  async delete<T>(url: string): Promise<ApiResponse<T>> {
-    const response = await this.client.delete<ApiResponse<T>>(url);
+  async delete<T>(url: string, config?: AxiosRequestConfig): Promise<ApiResponse<T>> {
+    const response = await this.client.delete<ApiResponse<T>>(url, config);
     return response.data;
   }
 }
 
 export const api = new ApiClient();
+export default api;
