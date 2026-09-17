@@ -28,7 +28,7 @@ router.post(
     });
 
     if (existingAccount) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'Points account already exists',
       });
@@ -38,7 +38,7 @@ router.post(
     try {
       txHash = await ethereumService.createPointsAccount(ethereumAddress, points);
     } catch (error: any) {
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain account creation failed',
       });
@@ -75,7 +75,7 @@ router.post(
         account: {
           ...account,
           points: account.points.toString(),
-          cryptoValue: account.cryptoValue.toString(),
+          cryptoValue: ethereumService.fromWei(account.cryptoValue),
         },
         txHash,
         message: 'Points account created on blockchain.',
@@ -98,7 +98,7 @@ router.get(
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      return res.json({
+      return void res.json({
         success: true,
         data: cached,
         cached: true,
@@ -111,7 +111,7 @@ router.get(
     });
 
     if (!account) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Points account not found',
       });
@@ -135,7 +135,7 @@ router.get(
       const result = {
         ...account,
         points: points.toString(),
-        cryptoValue: cryptoValue.toString(),
+        cryptoValue: ethereumService.fromWei(BigInt(cryptoValue)),
       };
 
       // Cache for 1 minute
@@ -152,7 +152,7 @@ router.get(
         data: {
           ...account,
           points: account.points.toString(),
-          cryptoValue: account.cryptoValue.toString(),
+          cryptoValue: ethereumService.fromWei(account.cryptoValue),
         },
         warning: 'Could not sync with blockchain, showing cached data',
       });
@@ -177,7 +177,7 @@ router.post(
     });
 
     if (!account) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Points account not found',
       });
@@ -218,7 +218,7 @@ router.post(
       });
       await cache.del(`points:${ethereumAddress}`);
 
-      return res.json({
+      return void res.json({
         success: true,
         data: {
           transactionId: transaction.id,
@@ -231,7 +231,7 @@ router.post(
         where: { id: transaction.id },
         data: { status: 'FAILED', errorMessage: error.message },
       });
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain transaction failed',
       });
@@ -255,21 +255,30 @@ router.post(
     });
 
     if (!account) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Points account not found',
       });
     }
 
     if (account.points < BigInt(pointsToSwap)) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'Insufficient points balance',
       });
     }
 
-    // Calculate crypto value (default rate: 100 points = 1 crypto)
-    const cryptoEarned = Math.floor(pointsToSwap / 100);
+    // Resolve the on-chain exchange rate (points per 1 crypto). Falls back to the
+    // contract default of 100 when the chain cannot be reached.
+    let exchangeRate = 100;
+    try {
+      const chainRate = Number(await ethereumService.getExchangeRate());
+      if (Number.isFinite(chainRate) && chainRate > 0) {
+        exchangeRate = chainRate;
+      }
+    } catch {
+      exchangeRate = 100;
+    }
 
     const transaction = await prisma.transaction.create({
       data: {
@@ -280,8 +289,7 @@ router.post(
         amount: BigInt(pointsToSwap),
         metadata: {
           pointsSwapped: pointsToSwap,
-          cryptoEarned,
-          exchangeRate: 100,
+          exchangeRate,
         },
         txHash: `pending-swap-${account.id}-${Date.now()}`,
       },
@@ -293,6 +301,8 @@ router.post(
         ethereumService.getPointsBalance(ethereumAddress),
         ethereumService.getPointsCryptoValue(ethereumAddress),
       ]);
+      // On-chain amount is denominated in wei; expose it as whole crypto units.
+      const cryptoEarned = ethereumService.fromWei(BigInt(swap.cryptoEarned));
       await prisma.pointsAccount.update({
         where: { id: account.id },
         data: {
@@ -309,21 +319,21 @@ router.post(
           blockTimestamp: new Date(),
           metadata: {
             pointsSwapped: pointsToSwap,
-            cryptoEarned: swap.cryptoEarned,
-            exchangeRate: 100,
+            cryptoEarned,
+            exchangeRate,
           },
         },
       });
       await cache.del(`points:${ethereumAddress}`);
 
-      return res.json({
+      return void res.json({
         success: true,
         data: {
           transactionId: transaction.id,
           txHash: swap.txHash,
           pointsSwapped: pointsToSwap,
-          cryptoEarned: swap.cryptoEarned,
-          exchangeRate: 100,
+          cryptoEarned,
+          exchangeRate,
           message: 'Points swapped on blockchain.',
         },
       });
@@ -332,7 +342,7 @@ router.post(
         where: { id: transaction.id },
         data: { status: 'FAILED', errorMessage: error.message },
       });
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain transaction failed',
       });
@@ -351,7 +361,7 @@ router.get(
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      return res.json({
+      return void res.json({
         success: true,
         data: cached,
         cached: true,
@@ -464,7 +474,7 @@ router.get(
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      return res.json({
+      return void res.json({
         success: true,
         data: cached,
         cached: true,
@@ -476,7 +486,7 @@ router.get(
     });
 
     if (!account) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Points account not found',
       });
@@ -510,7 +520,7 @@ router.get(
 
     const result = {
       currentPoints: account.points.toString(),
-      currentCryptoValue: account.cryptoValue.toString(),
+      currentCryptoValue: ethereumService.fromWei(account.cryptoValue),
       totalPointsAdded: totalAdded._sum.amount?.toString() || '0',
       totalPointsSwapped: totalSwapped._sum.amount?.toString() || '0',
       transactionCount,

@@ -57,7 +57,7 @@ router.get(
     if (pageNum === 1 && !startDate && !endDate) {
       const cached = await cache.get(cacheKey);
       if (cached) {
-        return res.json({
+        return void res.json({
           success: true,
           data: cached,
           cached: true,
@@ -127,89 +127,6 @@ router.get(
 );
 
 /**
- * GET /api/v1/transactions/:id
- * Get specific transaction details
- */
-router.get(
-  '/:id',
-  asyncHandler(async (req, res) => {
-    const { id } = req.params;
-    const { userId } = req.user!;
-
-    const transaction = await prisma.transaction.findFirst({
-      where: {
-        id,
-        userId,
-      },
-      include: {
-        travelCard: {
-          select: {
-            id: true,
-            ethereumAddress: true,
-            balance: true,
-            cryptoBalance: true,
-            currency: true,
-          },
-        },
-        nft: {
-          select: {
-            id: true,
-            nftId: true,
-            description: true,
-            price: true,
-            imageUrl: true,
-          },
-        },
-        pointsAccount: {
-          select: {
-            id: true,
-            ethereumAddress: true,
-            points: true,
-            cryptoValue: true,
-          },
-        },
-      },
-    });
-
-    if (!transaction) {
-      return res.status(404).json({
-        success: false,
-        error: 'Transaction not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: {
-        ...transaction,
-        amount: transaction.amount?.toString(),
-        travelCard: transaction.travelCard
-          ? {
-              ...transaction.travelCard,
-              balance: transaction.travelCard.balance.toString(),
-              cryptoBalance: transaction.travelCard.cryptoBalance.toString(),
-            }
-          : null,
-        nft: transaction.nft
-          ? {
-              ...transaction.nft,
-              nftId: transaction.nft.nftId.toString(),
-              price: transaction.nft.price.toString(),
-            }
-          : null,
-        pointsAccount: transaction.pointsAccount
-          ? {
-              ...transaction.pointsAccount,
-              points: transaction.pointsAccount.points.toString(),
-              cryptoValue: transaction.pointsAccount.cryptoValue.toString(),
-            }
-          : null,
-      },
-    });
-  })
-);
-
-/**
  * GET /api/v1/transactions/stats/summary
  * Get transaction statistics summary
  */
@@ -223,7 +140,7 @@ router.get(
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      return res.json({
+      return void res.json({
         success: true,
         data: cached,
         cached: true,
@@ -309,7 +226,7 @@ router.get(
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      return res.json({
+      return void res.json({
         success: true,
         data: cached,
         cached: true,
@@ -441,7 +358,7 @@ router.post(
     });
 
     if (!transaction) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Transaction not found or cannot be retried',
       });
@@ -537,6 +454,89 @@ router.get(
       `attachment; filename=transactions-${new Date().toISOString()}.csv`
     );
     res.send(csv);
+  })
+);
+
+/**
+ * GET /api/v1/transactions/:id
+ * Get specific transaction details
+ */
+router.get(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { userId } = req.user!;
+
+    const transaction = await prisma.transaction.findFirst({
+      where: {
+        id,
+        userId,
+      },
+      include: {
+        travelCard: {
+          select: {
+            id: true,
+            ethereumAddress: true,
+            balance: true,
+            cryptoBalance: true,
+            currency: true,
+          },
+        },
+        nft: {
+          select: {
+            id: true,
+            nftId: true,
+            description: true,
+            price: true,
+            imageUrl: true,
+          },
+        },
+        pointsAccount: {
+          select: {
+            id: true,
+            ethereumAddress: true,
+            points: true,
+            cryptoValue: true,
+          },
+        },
+      },
+    });
+
+    if (!transaction) {
+      return void res.status(404).json({
+        success: false,
+        error: 'Transaction not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        ...transaction,
+        amount: transaction.amount?.toString(),
+        travelCard: transaction.travelCard
+          ? {
+              ...transaction.travelCard,
+              balance: transaction.travelCard.balance.toString(),
+              cryptoBalance: transaction.travelCard.cryptoBalance.toString(),
+            }
+          : null,
+        nft: transaction.nft
+          ? {
+              ...transaction.nft,
+              nftId: transaction.nft.nftId.toString(),
+              price: transaction.nft.price.toString(),
+            }
+          : null,
+        pointsAccount: transaction.pointsAccount
+          ? {
+              ...transaction.pointsAccount,
+              points: transaction.pointsAccount.points.toString(),
+              cryptoValue: transaction.pointsAccount.cryptoValue.toString(),
+            }
+          : null,
+      },
+    });
   })
 );
 

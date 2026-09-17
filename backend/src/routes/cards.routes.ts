@@ -28,7 +28,7 @@ router.post(
     });
 
     if (existingCard) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'User already has a travel card',
       });
@@ -79,7 +79,7 @@ router.post(
       });
       await cache.del(`card:${ethereumAddress}`);
 
-      return res.status(201).json({
+      return void res.status(201).json({
         success: true,
         data: {
           card: {
@@ -96,7 +96,7 @@ router.post(
         where: { id: transaction.id },
         data: { status: 'FAILED', errorMessage: error.message },
       });
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain transaction failed',
       });
@@ -118,7 +118,7 @@ router.get(
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      return res.json({
+      return void res.json({
         success: true,
         data: cached,
         cached: true,
@@ -131,7 +131,7 @@ router.get(
     });
 
     if (!card) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Travel card not found',
       });
@@ -196,7 +196,7 @@ router.post(
     });
 
     if (!card) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Travel card not found',
       });
@@ -233,7 +233,7 @@ router.post(
       });
       await cache.del(`card:${ethereumAddress}`);
 
-      return res.json({
+      return void res.json({
         success: true,
         data: {
           transactionId: transaction.id,
@@ -246,7 +246,7 @@ router.post(
         where: { id: transaction.id },
         data: { status: 'FAILED', errorMessage: error.message },
       });
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain transaction failed',
       });
@@ -270,14 +270,14 @@ router.post(
     });
 
     if (!card) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'Travel card not found',
       });
     }
 
     if (card.balance < BigInt(amount)) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'Insufficient balance',
       });
@@ -314,7 +314,7 @@ router.post(
       });
       await cache.del(`card:${ethereumAddress}`);
 
-      return res.json({
+      return void res.json({
         success: true,
         data: {
           transactionId: transaction.id,
@@ -327,7 +327,7 @@ router.post(
         where: { id: transaction.id },
         data: { status: 'FAILED', errorMessage: error.message },
       });
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain transaction failed',
       });

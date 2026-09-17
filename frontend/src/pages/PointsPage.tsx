@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
-import { PointsAccount } from '@/types';
+import { PointsAccount, ExchangeRate } from '@/types';
 import { FaCoins, FaExchangeAlt, FaPlus, FaHistory } from 'react-icons/fa';
 import toast from 'react-hot-toast';
 import { useAuthStore } from '@/store/authStore';
@@ -15,6 +15,7 @@ export default function PointsPage() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [stats, setStats] = useState<any>(null);
+  const [exchangeRate, setExchangeRate] = useState(100);
 
   // Create account form
   const [initialPoints, setInitialPoints] = useState('10000');
@@ -33,12 +34,16 @@ export default function PointsPage() {
   const fetchAccount = async () => {
     try {
       setIsLoading(true);
-      const [accountRes, statsRes] = await Promise.all([
+      const [accountRes, statsRes, rateRes] = await Promise.all([
         api.get<PointsAccount>('/points/my'),
         api.get<Record<string, unknown>>('/points/stats').catch(() => ({ data: null })),
+        api.get<ExchangeRate>('/points/exchange-rate').catch(() => ({ data: null })),
       ]);
       setAccount(accountRes.data);
       setStats(statsRes.data);
+      if (rateRes.data?.pointsPerCrypto) {
+        setExchangeRate(rateRes.data.pointsPerCrypto);
+      }
     } catch (error: any) {
       if (error.response?.status !== 404) {
         toast.error('Failed to load points account');
@@ -164,7 +169,6 @@ export default function PointsPage() {
     );
   }
 
-  const exchangeRate = 100; // 100 points = 1 APT
   const estimatedCrypto = swapPoints ? parseInt(swapPoints, 10) / exchangeRate : 0;
 
   return (
@@ -223,13 +227,13 @@ export default function PointsPage() {
           <div className="card">
             <p className="text-sm text-gray-600">Total Earned</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
-              {stats.totalEarned?.toLocaleString() || '0'}
+              {(parseInt(stats.totalPointsAdded, 10) || 0).toLocaleString()}
             </p>
           </div>
           <div className="card">
             <p className="text-sm text-gray-600">Total Swapped</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">
-              {stats.totalSwapped?.toLocaleString() || '0'}
+              {(parseInt(stats.totalPointsSwapped, 10) || 0).toLocaleString()}
             </p>
           </div>
           <div className="card">
@@ -340,7 +344,7 @@ export default function PointsPage() {
                 <div className="flex justify-between text-sm pt-2 border-t border-blue-200">
                   <span className="text-gray-600">You will receive:</span>
                   <span className="font-semibold text-blue-600">
-                    {estimatedCrypto.toFixed(4)} ETH
+                    {estimatedCrypto.toFixed(4)} APT
                   </span>
                 </div>
               </div>

@@ -40,7 +40,7 @@ router.get(
     });
 
     if (!user) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'User not found',
       });
@@ -124,7 +124,7 @@ router.put(
     });
 
     if (taken) {
-      return res.status(409).json({
+      return void res.status(409).json({
         success: false,
         error: 'This wallet is already linked to another account',
       });
@@ -216,7 +216,7 @@ router.put(
     });
 
     if (!user) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'User not found',
       });
@@ -229,7 +229,7 @@ router.put(
     );
 
     if (!isValid) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'Current password is incorrect',
       });
@@ -343,7 +343,7 @@ router.get(
     });
 
     if (!user) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'User not found',
       });
@@ -411,7 +411,7 @@ router.delete(
     });
 
     if (!user) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'User not found',
       });
@@ -421,7 +421,7 @@ router.delete(
     const isValid = await authService.comparePassword(password, user.passwordHash);
 
     if (!isValid) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'Password is incorrect',
       });

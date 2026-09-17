@@ -53,7 +53,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(morgan('combined', { stream: morganStream }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get('/health', (_req, res) => {
   res.json({
     success: true,
     message: 'Travel Lifestyle API is running',
@@ -72,7 +72,7 @@ app.use(`${apiPrefix}/transactions`, transactionsRoutes);
 app.use(`${apiPrefix}/users`, usersRoutes);
 
 // API documentation endpoint
-app.get(`${apiPrefix}`, (req, res) => {
+app.get(`${apiPrefix}`, (_req, res) => {
   res.json({
     success: true,
     message: 'Travel & Lifestyle API',
@@ -97,6 +97,8 @@ app.get(`${apiPrefix}`, (req, res) => {
         offer: `POST ${apiPrefix}/nfts/:id/offer`,
         claim: `POST ${apiPrefix}/nfts/:id/claim`,
         cancel: `POST ${apiPrefix}/nfts/:id/cancel`,
+        listForSale: `PUT ${apiPrefix}/nfts/:id/list`,
+        purchase: `POST ${apiPrefix}/nfts/:id/purchase`,
         marketplace: `GET ${apiPrefix}/nfts/marketplace/featured`,
       },
       points: {

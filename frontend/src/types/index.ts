@@ -34,6 +34,8 @@ export interface TravelCard {
 // NFT types
 export interface NFT {
   id: string;
+  userId?: string;
+  ethereumAddress?: string;
   nftId: string;
   description: string;
   price: string;
@@ -79,6 +81,7 @@ export enum TransactionType {
   NFT_OFFER = 'NFT_OFFER',
   NFT_CLAIM = 'NFT_CLAIM',
   NFT_CANCEL = 'NFT_CANCEL',
+  NFT_PURCHASE = 'NFT_PURCHASE',
   POINTS_CREATE = 'POINTS_CREATE',
   POINTS_ADD = 'POINTS_ADD',
   POINTS_SWAP = 'POINTS_SWAP',

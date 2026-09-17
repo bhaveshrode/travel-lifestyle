@@ -1,11 +1,11 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import Joi from 'joi';
 import { logger } from '../config/logger';
 
 /**
  * Middleware to validate request body
  */
-export const validate = (schema: Joi.ObjectSchema) => {
+export const validate = (schema: Joi.ObjectSchema): RequestHandler => {
   return (req: Request, res: Response, next: NextFunction) => {
     const { error, value } = schema.validate(req.body, {
       abortEarly: false,
@@ -20,11 +20,12 @@ export const validate = (schema: Joi.ObjectSchema) => {
 
       logger.warn('Validation error:', { errors, body: req.body });
 
-      return res.status(400).json({
+      res.status(400).json({
         success: false,
         error: 'Validation failed',
         details: errors,
       });
+      return;
     }
 
     req.body = value;
@@ -58,22 +59,22 @@ export const schemas = {
 
   // Travel Card schemas
   createTravelCard: Joi.object({
-    initialBalance: Joi.number().min(0).required(),
+    initialBalance: Joi.number().integer().min(1).required(),
     currency: Joi.string().length(3).uppercase().required(),
   }),
 
   loadFunds: Joi.object({
-    amount: Joi.number().min(1).required(),
+    amount: Joi.number().integer().min(1).required(),
   }),
 
   convertToCrypto: Joi.object({
-    amount: Joi.number().min(1).required(),
+    amount: Joi.number().integer().min(1).required(),
   }),
 
   // NFT schemas
   createNFT: Joi.object({
     description: Joi.string().min(1).max(1000).required(),
-    price: Joi.number().min(0).required(),
+    price: Joi.number().integer().min(0).required(),
     imageUrl: Joi.string().uri().optional(),
     category: Joi.string().optional(),
     location: Joi.string().optional(),
@@ -81,12 +82,10 @@ export const schemas = {
 
   offerNFT: Joi.object({
     recipientAddress: Joi.string().required(),
-    nftId: Joi.number().integer().min(0).optional(),
   }),
 
   claimNFT: Joi.object({
     fromAddress: Joi.string().required(),
-    nftId: Joi.number().integer().min(0).optional(),
   }),
 
   // Points schemas

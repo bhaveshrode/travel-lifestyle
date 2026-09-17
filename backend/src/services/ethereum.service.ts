@@ -115,6 +115,11 @@ class EthereumService {
     return sendTx(c.unlistNFT(BigInt(tokenId)));
   }
 
+  async purchaseNFT(buyerAddress: string, tokenId: string, price: bigint) {
+    const c = await this.write(this.nftsAddress, nftsAbi, buyerAddress);
+    return sendTx(c.purchaseNFT(BigInt(tokenId), { value: price }));
+  }
+
   async offerNFTTransfer(tokenId: string, fromAddress: string, toAddress: string) {
     const c = await this.write(this.nftsAddress, nftsAbi, fromAddress);
     return sendTx(c.offerNFTTransfer(BigInt(tokenId), requireAddress(toAddress, 'recipient')));

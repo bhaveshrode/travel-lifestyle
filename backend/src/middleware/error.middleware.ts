@@ -1,4 +1,4 @@
-import { Request, Response, NextFunction } from 'express';
+import { Request, Response, NextFunction, RequestHandler } from 'express';
 import { logger } from '../config/logger';
 
 /**
@@ -23,24 +23,20 @@ export const errorHandler = (
   err: Error | ApiError,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ) => {
   let statusCode = 500;
   let message = 'Internal server error';
-  let isOperational = false;
 
   if (err instanceof ApiError) {
     statusCode = err.statusCode;
     message = err.message;
-    isOperational = err.isOperational;
   } else if (err.message === 'Invalid credentials' || err.message === 'Invalid email or password') {
     statusCode = 401;
     message = 'Invalid email or password';
-    isOperational = true;
   } else if (err.message === 'User already exists') {
     statusCode = 409;
     message = err.message;
-    isOperational = true;
   } else if (err.name === 'ValidationError') {
     statusCode = 400;
     message = err.message;
@@ -78,7 +74,7 @@ export const errorHandler = (
  */
 export const notFoundHandler = (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
 ) => {
   const error = new ApiError(404, `Route not found: ${req.originalUrl}`);
@@ -88,8 +84,10 @@ export const notFoundHandler = (
 /**
  * Async handler wrapper
  */
-export const asyncHandler = (fn: Function) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+export const asyncHandler = (
+  fn: (req: Request, res: Response, next: NextFunction) => Promise<unknown>
+): RequestHandler => {
+  return (req, res, next) => {
     Promise.resolve(fn(req, res, next)).catch(next);
   };
 };

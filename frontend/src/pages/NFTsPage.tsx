@@ -1,15 +1,19 @@
 import { useState, useEffect } from 'react';
 import api from '@/services/api';
 import { NFT } from '@/types';
-import { FaImage, FaPlus, FaMapMarkerAlt, FaTag } from 'react-icons/fa';
+import { FaImage, FaPlus, FaMapMarkerAlt, FaTag, FaShoppingCart } from 'react-icons/fa';
 import toast from 'react-hot-toast';
+import { useAuthStore } from '@/store/authStore';
 
 export default function NFTsPage() {
+  const { user } = useAuthStore();
   const [nfts, setNfts] = useState<NFT[]>([]);
+  const [marketplace, setMarketplace] = useState<NFT[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
   const [selectedNFT, setSelectedNFT] = useState<NFT | null>(null);
+  const [purchasingId, setPurchasingId] = useState<string | null>(null);
 
   // Create NFT form
   const [description, setDescription] = useState('');
@@ -28,8 +32,14 @@ export default function NFTsPage() {
   const fetchNFTs = async () => {
     try {
       setIsLoading(true);
-      const response = await api.get<{ nfts: NFT[] }>('/nfts');
-      setNfts(response.data.nfts);
+      const [ownedRes, marketRes] = await Promise.all([
+        api.get<{ nfts: NFT[] }>('/nfts'),
+        api
+          .get<NFT[]>('/nfts/marketplace/featured', { params: { limit: 12 } })
+          .catch(() => ({ data: [] as NFT[] })),
+      ]);
+      setNfts(ownedRes.data.nfts);
+      setMarketplace(marketRes.data);
     } catch (error: any) {
       toast.error('Failed to load NFTs');
     } finally {
@@ -42,7 +52,7 @@ export default function NFTsPage() {
     try {
       await api.post('/nfts', {
         description,
-        price: parseFloat(price),
+        price: parseInt(price, 10),
         category,
         location,
         imageUrl: imageUrl || undefined,
@@ -83,6 +93,19 @@ export default function NFTsPage() {
       fetchNFTs();
     } catch (error: any) {
       toast.error(error.response?.data?.error || 'Failed to update listing');
+    }
+  };
+
+  const handlePurchase = async (nft: NFT) => {
+    try {
+      setPurchasingId(nft.id);
+      await api.post(`/nfts/${nft.id}/purchase`, {});
+      toast.success('NFT purchased successfully!');
+      await fetchNFTs();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to purchase NFT');
+    } finally {
+      setPurchasingId(null);
     }
   };
 
@@ -221,6 +244,69 @@ export default function NFTsPage() {
         </div>
       )}
 
+      {/* Marketplace */}
+      {marketplace.filter((n) => n.ethereumAddress?.toLowerCase() !== user?.ethereumAddress?.toLowerCase()).length > 0 && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-xl font-bold text-gray-900">Marketplace</h2>
+            <p className="text-gray-600 text-sm">Listed experiences available to purchase</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {marketplace
+              .filter((n) => n.ethereumAddress?.toLowerCase() !== user?.ethereumAddress?.toLowerCase())
+              .map((nft) => (
+                <div key={nft.id} className="card hover:shadow-lg transition-shadow">
+                  {nft.imageUrl ? (
+                    <img
+                      src={nft.imageUrl}
+                      alt={nft.description}
+                      className="w-full h-48 object-cover rounded-lg mb-4"
+                    />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-purple-400 to-blue-500 rounded-lg mb-4 flex items-center justify-center">
+                      <FaImage className="text-white text-4xl" />
+                    </div>
+                  )}
+                  <div className="space-y-3">
+                    <p className="text-gray-900 font-medium line-clamp-2">{nft.description}</p>
+                    {nft.user?.username && (
+                      <p className="text-sm text-gray-500">by {nft.user.username}</p>
+                    )}
+                    {nft.category && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <FaTag className="mr-2" />
+                        {nft.category}
+                      </div>
+                    )}
+                    {nft.location && (
+                      <div className="flex items-center text-sm text-gray-600">
+                        <FaMapMarkerAlt className="mr-2" />
+                        {nft.location}
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center pt-3 border-t">
+                      <span className="text-lg font-bold text-purple-600">
+                        {parseFloat(nft.price).toFixed(2)} APT
+                      </span>
+                      <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">
+                        Listed
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => handlePurchase(nft)}
+                      disabled={purchasingId === nft.id}
+                      className="btn btn-primary w-full text-sm"
+                    >
+                      <FaShoppingCart className="inline mr-2" />
+                      {purchasingId === nft.id ? 'Purchasing...' : 'Buy'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
+
       {/* Create NFT Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
@@ -248,11 +334,11 @@ export default function NFTsPage() {
                   type="number"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  min="0.01"
-                  step="0.01"
+                  min="0"
+                  step="1"
                   required
                   className="input"
-                  placeholder="10.00"
+                  placeholder="10"
                 />
               </div>
               <div>

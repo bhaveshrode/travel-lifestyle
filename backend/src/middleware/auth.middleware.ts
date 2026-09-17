@@ -22,15 +22,16 @@ export const authenticate = async (
   req: Request,
   res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'No token provided',
       });
+      return;
     }
 
     const token = authHeader.substring(7);
@@ -41,14 +42,14 @@ export const authenticate = async (
       next();
     } catch (error) {
       logger.error('Token verification failed:', error);
-      return res.status(401).json({
+      res.status(401).json({
         success: false,
         error: 'Invalid or expired token',
       });
     }
   } catch (error) {
     logger.error('Authentication error:', error);
-    return res.status(500).json({
+    res.status(500).json({
       success: false,
       error: 'Authentication failed',
     });
@@ -60,9 +61,9 @@ export const authenticate = async (
  */
 export const optionalAuthenticate = async (
   req: Request,
-  res: Response,
+  _res: Response,
   next: NextFunction
-) => {
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 

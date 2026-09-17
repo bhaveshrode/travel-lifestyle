@@ -47,7 +47,7 @@ export default function TravelCardPage() {
     e.preventDefault();
     try {
       await api.post('/cards', {
-        initialBalance: parseFloat(initialBalance),
+        initialBalance: parseInt(initialBalance, 10),
         currency,
       });
       toast.success('Travel card created successfully!');
@@ -62,7 +62,7 @@ export default function TravelCardPage() {
     e.preventDefault();
     try {
       await api.post('/cards/load-funds', {
-        amount: parseFloat(loadAmount),
+        amount: parseInt(loadAmount, 10),
       });
       toast.success('Funds loaded successfully!');
       setShowLoadModal(false);
@@ -77,7 +77,7 @@ export default function TravelCardPage() {
     e.preventDefault();
     try {
       await api.post('/cards/convert-to-crypto', {
-        amount: parseFloat(convertAmount),
+        amount: parseInt(convertAmount, 10),
       });
       toast.success('Conversion successful!');
       setShowConvertModal(false);
@@ -130,8 +130,8 @@ export default function TravelCardPage() {
                     type="number"
                     value={initialBalance}
                     onChange={(e) => setInitialBalance(e.target.value)}
-                    min="0"
-                    step="0.01"
+                    min="1"
+                    step="1"
                     required
                     className="input"
                   />
@@ -242,8 +242,8 @@ export default function TravelCardPage() {
                   type="number"
                   value={loadAmount}
                   onChange={(e) => setLoadAmount(e.target.value)}
-                  min="0.01"
-                  step="0.01"
+                  min="1"
+                  step="1"
                   required
                   className="input"
                   placeholder="Enter amount"
@@ -283,9 +283,9 @@ export default function TravelCardPage() {
                   type="number"
                   value={convertAmount}
                   onChange={(e) => setConvertAmount(e.target.value)}
-                  min="0.01"
+                  min="1"
                   max={card.balance}
-                  step="0.01"
+                  step="1"
                   required
                   className="input"
                   placeholder="Enter amount"

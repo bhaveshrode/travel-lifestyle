@@ -8,7 +8,67 @@ import { cache } from '../config/redis';
 
 const router = Router();
 
-// All routes require authentication
+/**
+ * GET /api/v1/nfts/marketplace/featured
+ * Get featured NFTs from marketplace (public, no authentication required)
+ *
+ * Registered before the authenticate middleware below so the endpoint stays
+ * publicly accessible as documented.
+ */
+router.get(
+  '/marketplace/featured',
+  asyncHandler(async (req, res) => {
+    const parsedLimit = parseInt(req.query.limit as string, 10);
+    const limitNum = Number.isFinite(parsedLimit)
+      ? Math.min(Math.max(parsedLimit, 1), 50)
+      : 10;
+
+    // Cache key for featured NFTs
+    const cacheKey = `marketplace:featured:${limitNum}`;
+    const cached = await cache.get(cacheKey);
+
+    if (cached) {
+      return void res.json({
+        success: true,
+        data: cached,
+        cached: true,
+      });
+    }
+
+    const nfts = await prisma.nFT.findMany({
+      where: {
+        isListed: true,
+        isPendingTransfer: false,
+      },
+      take: limitNum,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        user: {
+          select: {
+            username: true,
+            avatar: true,
+          },
+        },
+      },
+    });
+
+    const result = nfts.map((nft) => ({
+      ...nft,
+      nftId: nft.nftId.toString(),
+      price: nft.price.toString(),
+    }));
+
+    // Cache for 2 minutes
+    await cache.set(cacheKey, result, 120);
+
+    res.json({
+      success: true,
+      data: result,
+    });
+  })
+);
+
+// All routes below require authentication
 router.use(authenticate);
 
 /**
@@ -34,7 +94,7 @@ router.post(
         tokenURI
       );
     } catch (error: any) {
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain mint failed',
       });
@@ -117,7 +177,7 @@ router.get(
     const cached = await cache.get(cacheKey);
 
     if (cached) {
-      return res.json({
+      return void res.json({
         success: true,
         data: cached,
         cached: true,
@@ -185,7 +245,7 @@ router.get(
     });
 
     if (!nft) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'NFT not found',
       });
@@ -223,21 +283,21 @@ router.post(
     });
 
     if (!nft) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'NFT not found or you do not own this NFT',
       });
     }
 
     if (nft.isPendingTransfer) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'NFT already has a pending transfer',
       });
     }
 
     if (recipientAddress === ethereumAddress) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'Cannot transfer NFT to yourself',
       });
@@ -251,7 +311,7 @@ router.post(
         recipientAddress
       );
     } catch (error: any) {
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain offer failed',
       });
@@ -318,7 +378,7 @@ router.post(
     });
 
     if (!nft) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'NFT not found or not offered to you',
       });
@@ -328,7 +388,7 @@ router.post(
     try {
       txHash = await ethereumService.claimNFTTransfer(nft.nftId.toString(), ethereumAddress);
     } catch (error: any) {
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain claim failed',
       });
@@ -396,7 +456,7 @@ router.post(
     });
 
     if (!nft) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'NFT not found or no pending transfer',
       });
@@ -406,7 +466,7 @@ router.post(
     try {
       txHash = await ethereumService.cancelNFTTransfer(nft.nftId.toString(), ethereumAddress);
     } catch (error: any) {
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain cancel failed',
       });
@@ -449,6 +509,116 @@ router.post(
 );
 
 /**
+ * POST /api/v1/nfts/:id/purchase
+ * Purchase a listed NFT from the marketplace
+ */
+router.post(
+  '/:id/purchase',
+  asyncHandler(async (req, res) => {
+    const { id } = req.params;
+    const { userId, ethereumAddress } = req.user!;
+
+    const nft = await prisma.nFT.findFirst({
+      where: { id },
+    });
+
+    if (!nft) {
+      return void res.status(404).json({
+        success: false,
+        error: 'NFT not found',
+      });
+    }
+
+    if (!nft.isListed) {
+      return void res.status(400).json({
+        success: false,
+        error: 'NFT is not listed for sale',
+      });
+    }
+
+    if (nft.isPendingTransfer) {
+      return void res.status(400).json({
+        success: false,
+        error: 'NFT has a pending transfer',
+      });
+    }
+
+    const sellerAddress = nft.ethereumAddress;
+    if (sellerAddress.toLowerCase() === ethereumAddress.toLowerCase()) {
+      return void res.status(400).json({
+        success: false,
+        error: 'You cannot purchase your own NFT',
+      });
+    }
+
+    // Pay exactly the price the NFT was listed at, matching the on-chain value.
+    const price = nft.price;
+
+    let txHash: string;
+    try {
+      txHash = await ethereumService.purchaseNFT(
+        ethereumAddress,
+        nft.nftId.toString(),
+        price
+      );
+    } catch (error: any) {
+      return void res.status(502).json({
+        success: false,
+        error: error.message || 'Blockchain purchase failed',
+      });
+    }
+
+    const updated = await prisma.nFT.update({
+      where: { id: nft.id },
+      data: {
+        userId,
+        ethereumAddress,
+        isListed: false,
+        isPendingTransfer: false,
+        pendingTo: null,
+      },
+    });
+
+    const transaction = await prisma.transaction.create({
+      data: {
+        userId,
+        type: 'NFT_PURCHASE',
+        status: 'CONFIRMED',
+        nftId: nft.id,
+        amount: price,
+        fromAddress: sellerAddress,
+        toAddress: ethereumAddress,
+        metadata: {
+          nftId: nft.nftId.toString(),
+          description: nft.description,
+          price: price.toString(),
+        },
+        txHash,
+        blockTimestamp: new Date(),
+      },
+    });
+
+    await cache.delPattern(`nfts:${sellerAddress}*`);
+    await cache.delPattern(`nfts:${ethereumAddress}*`);
+    await cache.delPattern('marketplace:featured*');
+
+    res.json({
+      success: true,
+      data: {
+        nft: {
+          ...updated,
+          nftId: updated.nftId.toString(),
+          price: updated.price.toString(),
+        },
+        transactionId: transaction.id,
+        txHash,
+        message: 'NFT purchased on blockchain.',
+      },
+    });
+  })
+);
+
+/**
  * PUT /api/v1/nfts/:id/list
  * List or unlist NFT for sale
  */
@@ -467,14 +637,14 @@ router.put(
     });
 
     if (!nft) {
-      return res.status(404).json({
+      return void res.status(404).json({
         success: false,
         error: 'NFT not found',
       });
     }
 
     if (nft.isPendingTransfer) {
-      return res.status(400).json({
+      return void res.status(400).json({
         success: false,
         error: 'Cannot list NFT with pending transfer',
       });
@@ -487,7 +657,7 @@ router.put(
         await ethereumService.unlistNFT(ethereumAddress, nft.nftId.toString());
       }
     } catch (error: any) {
-      return res.status(502).json({
+      return void res.status(502).json({
         success: false,
         error: error.message || 'Blockchain listing update failed',
       });
@@ -505,61 +675,6 @@ router.put(
       data: {
         message: `NFT ${isListed ? 'listed' : 'unlisted'} on blockchain`,
       },
-    });
-  })
-);
-
-/**
- * GET /api/v1/nfts/marketplace/featured
- * Get featured NFTs from marketplace (public)
- */
-router.get(
-  '/marketplace/featured',
-  asyncHandler(async (req, res) => {
-    const { limit = 10 } = req.query;
-    const limitNum = parseInt(limit as string, 10);
-
-    // Cache key for featured NFTs
-    const cacheKey = `marketplace:featured:${limitNum}`;
-    const cached = await cache.get(cacheKey);
-
-    if (cached) {
-      return res.json({
-        success: true,
-        data: cached,
-        cached: true,
-      });
-    }
-
-    const nfts = await prisma.nFT.findMany({
-      where: {
-        isListed: true,
-        isPendingTransfer: false,
-      },
-      take: limitNum,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        user: {
-          select: {
-            username: true,
-            avatar: true,
-          },
-        },
-      },
-    });
-
-    const result = nfts.map((nft) => ({
-      ...nft,
-      nftId: nft.nftId.toString(),
-      price: nft.price.toString(),
-    }));
-
-    // Cache for 2 minutes
-    await cache.set(cacheKey, result, 120);
-
-    res.json({
-      success: true,
-      data: result,
     });
   })
 );

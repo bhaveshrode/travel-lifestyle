@@ -32,7 +32,7 @@ export class AuthService {
    */
   generateAccessToken(payload: JwtPayload): string {
     return jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.expiresIn,
+      expiresIn: config.jwt.expiresIn as jwt.SignOptions['expiresIn'],
     });
   }
 
@@ -41,7 +41,7 @@ export class AuthService {
    */
   generateRefreshToken(payload: JwtPayload): string {
     return jwt.sign(payload, config.jwt.secret, {
-      expiresIn: config.jwt.refreshExpiresIn,
+      expiresIn: config.jwt.refreshExpiresIn as jwt.SignOptions['expiresIn'],
     });
   }
 
@@ -205,7 +205,7 @@ export class AuthService {
   async refreshAccessToken(refreshToken: string) {
     try {
       // Verify refresh token
-      const payload = this.verifyToken(refreshToken);
+      this.verifyToken(refreshToken);
 
       // Check if refresh token exists in database
       const storedToken = await prisma.refreshToken.findUnique({
