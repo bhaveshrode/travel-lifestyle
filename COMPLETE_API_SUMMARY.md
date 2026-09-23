@@ -323,13 +323,11 @@ npm run dev
 # Test all endpoints with curl or Postman
 ```
 
-### **2. Build Frontend**
-Now that the backend is complete, you can:
-- Create React/Vue/Next.js frontend
-- Design UI components
-- Integrate wallet connection (Petra, Martian)
-- Build user dashboard
-- Create NFT marketplace interface
+### **2. Run Frontend**
+The React + Vite app already exists in `frontend/`:
+- `cd frontend && npm install && npm run dev`
+- MetaMask connect is on the register page
+- Remaining work: wallet-signed txs, IPFS upload, frontend tests
 
 ### **3. Deploy Backend**
 ```bash

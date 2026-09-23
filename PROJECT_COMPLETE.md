@@ -22,8 +22,8 @@
 │           └──────────────────────┼────────────────────┘     │
 │                                  ▼                          │
 │                      ┌─────────────────────┐                │
-│                      │  Aptos Blockchain   │                │
-│                      │   Move Modules      │                │
+│                      │ Ethereum Blockchain │                │
+│                      │ Solidity Contracts  │                │
 │                      └─────────────────────┘                │
 │                                                             │
 └─────────────────────────────────────────────────────────────┘
@@ -34,9 +34,10 @@
 ## 🏗️ Technology Stack
 
 ### **Blockchain Layer**
-- **Language**: Move
-- **Platform**: Aptos Blockchain
-- **Modules**: 3 smart contracts (Digital Travel Card, Experience NFTs, Points Exchange)
+- **Language**: Solidity 0.8.24
+- **Platform**: Ethereum (Hardhat local / Sepolia)
+- **Contracts**: DigitalTravelCard, ExperienceNFTs, TravelPointsExchange
+- **Client**: ethers.js v6
 
 ### **Backend Layer**
 - **Runtime**: Node.js 18+
@@ -65,7 +66,7 @@
 ## 📦 Complete Feature Set
 
 ### **1. User Management** ✅
-- User registration with Aptos address
+- User registration with Ethereum address (MetaMask optional)
 - JWT authentication (access + refresh tokens)
 - Protected routes and API endpoints
 - Profile management (name, bio, avatar)
@@ -126,11 +127,11 @@
 ## 📈 Project Statistics
 
 ### **Smart Contracts**
-- **Files**: 3 Move modules
-- **Lines of Code**: ~985 lines
+- **Files**: 3 Solidity contracts
+- **Tests**: 19 Hardhat tests
 - **Functions**: 25+ public functions
-- **Security**: Two-step transfers, overflow protection
-- **Status**: ✅ Compiled, Fixed, Production-Ready
+- **Security**: OpenZeppelin Ownable, Pausable, ReentrancyGuard
+- **Status**: Compiled and covered by contract tests
 
 ### **Backend API**
 - **Endpoints**: 41 REST endpoints
@@ -163,10 +164,13 @@
 
 ```
 travel-lifestyle/
-├── sources/                           # Move Smart Contracts
-│   ├── digital_travel_card.move       # Multi-currency wallet 
-│   ├── experience_nfts.move           # NFT marketplace 
-│   └── travel_points_exchange.move    # Points system 
+├── contracts/                         # Ethereum smart contracts
+│   ├── src/
+│   │   ├── DigitalTravelCard.sol
+│   │   ├── ExperienceNFTs.sol
+│   │   └── TravelPointsExchange.sol
+│   ├── scripts/deploy.js
+│   └── test/                          # Hardhat tests
 │
 ├── backend/                           # Node.js Backend API
 │   ├── src/
@@ -177,7 +181,6 @@ travel-lifestyle/
 │   │   ├── middleware/
 │   │   │   ├── auth.middleware.ts     # JWT verification
 │   │   │   ├── error.middleware.ts    # Error handling
-│   │   │   ├── rateLimit.middleware.ts # Rate limiting
 │   │   │   └── validation.middleware.ts # Joi validation
 │   │   ├── routes/
 │   │   │   ├── auth.routes.ts         # Auth endpoints (4)
@@ -188,10 +191,11 @@ travel-lifestyle/
 │   │   │   └── users.routes.ts        # User endpoints (6)
 │   │   ├── services/
 │   │   │   ├── auth.service.ts        # Authentication logic
-│   │   │   └── blockchain.service.ts  # Aptos integration
-│   │   ├── utils/
-│   │   │   └── helpers.ts             # Utility functions
-│   │   └── server.ts                  # Express app
+│   │   │   ├── ethereum.service.ts     # Ethereum integration
+│   │   │   └── ethereum.helpers.ts    # Signers and tx helpers
+│   │   ├── app.ts                     # Express app (testable)
+│   │   ├── server.ts                  # Server bootstrap
+│   │   └── __tests__/                 # Jest API tests
 │   ├── prisma/
 │   │   └── schema.prisma              # Database schema (6 models)
 │   ├── logs/                          # Winston logs
@@ -230,7 +234,7 @@ travel-lifestyle/
 │   ├── tailwind.config.js             # TailwindCSS config
 │   └── README.md                      # Frontend documentation
 │
-├── MOVE.md                            # Move coding standards
+├── ETHEREUM_MIGRATION.md              # Aptos to Ethereum migration notes
 ├── BACKEND_SUMMARY.md                 # Backend overview
 ├── COMPLETE_API_SUMMARY.md            # Complete API guide
 ├── QUICKSTART.md                      # 5-minute quickstart
@@ -401,7 +405,7 @@ GET    /api/v1/transactions/export
 
 ## 📚 Documentation Index
 
-1. **`MOVE.md`** - Move coding standards and conventions
+1. **`ETHEREUM_MIGRATION.md`** - Aptos to Ethereum migration notes
 2. **`README.md`** - Main project overview
 3. **`QUICKSTART.md`** - 5-minute quick start guide
 4. **`BACKEND_SUMMARY.md`** - Backend architecture overview
@@ -441,9 +445,9 @@ GET    /api/v1/transactions/export
 ## 🔮 Future Enhancements
 
 ### **Phase 1: Integration**
-- [ ] Petra wallet integration
-- [ ] Martian wallet integration
-- [ ] Real Aptos testnet deployment
+- [x] MetaMask wallet connect on register
+- [ ] Client-signed transactions (wallet, not backend impersonation)
+- [ ] Sepolia testnet deployment
 - [ ] IPFS image upload
 - [ ] Email notifications
 
@@ -473,22 +477,21 @@ GET    /api/v1/transactions/export
 
 ## 🐛 Known Issues / Limitations
 
-1. **Demo Mode**: Currently uses placeholder Aptos addresses
-2. **Mock Blockchain**: Backend simulates blockchain transactions
-3. **No Wallet Connection**: Actual wallet integration pending
-4. **Single Currency**: Only USD for travel cards (others supported but not tested)
+1. **Local chain signing**: Backend impersonates user accounts on Hardhat; public networks need a funded `PRIVATE_KEY` or client-side wallet signatures
+2. **Wallet connect**: MetaMask is used to capture an address; it does not yet sign every on-chain action in the UI
+3. **No Prisma migrations**: Schema is applied with `prisma db push`
+4. **Single-currency UX**: USD is the primary path; EUR/GBP/JPY are supported on-chain
 5. **No Image Upload**: NFTs require external image URLs
 
 ---
 
 ## 🎓 Learning Outcomes
 
-### **Move Language**
-- Resource management (has key, has store, has drop)
-- Two-step transfer pattern
-- Error handling with constants
-- Blockchain security best practices
-- Acquire annotations and borrowing
+### **Solidity / Ethereum**
+- OpenZeppelin Ownable, Pausable, ReentrancyGuard
+- ERC-721 marketplace with two-step transfer
+- Custom errors and input validation
+- Hardhat local node and impersonation for development
 
 ### **Backend Development**
 - RESTful API design

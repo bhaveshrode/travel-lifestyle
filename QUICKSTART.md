@@ -25,9 +25,9 @@ cp .env.example .env
 # 3. Edit .env - Set these REQUIRED values:
 nano .env
 # - JWT_SECRET (generate with: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))")
-# - ETHEREUM_RPC_URL (your Ethereum RPC endpoint)
-# - CONTRACT_ADDRESS (your deployed contract address)
-# - ADMIN_PRIVATE_KEY (your Ethereum admin private key)
+# - ETHEREUM_RPC_URL (Hardhat: http://127.0.0.1:8545)
+# - TRAVEL_CARD_ADDRESS, NFTS_ADDRESS, POINTS_ADDRESS
+# - PRIVATE_KEY (Hardhat account 0 for local dev)
 
 # 4. Start everything (PostgreSQL + Redis + Backend)
 docker-compose up -d
@@ -91,9 +91,11 @@ DATABASE_URL="postgresql://postgres:postgres@localhost:5432/travel_lifestyle"
 JWT_SECRET=REPLACE_WITH_OUTPUT_FROM_COMMAND_BELOW
 
 # Ethereum (from your deployed contracts)
-ETHEREUM_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY
-CONTRACT_ADDRESS=0x...  # YOUR CONTRACT ADDRESS
-ADMIN_PRIVATE_KEY=0x... # YOUR PRIVATE KEY
+ETHEREUM_RPC_URL=http://127.0.0.1:8545
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+TRAVEL_CARD_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+NFTS_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+POINTS_ADDRESS=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
 ```
 
 **Generate JWT Secret:**
@@ -146,7 +148,7 @@ const config: HardhatUserConfig = {
   networks: {
     sepolia: {
       url: process.env.ETHEREUM_RPC_URL || "",
-      accounts: process.env.ADMIN_PRIVATE_KEY ? [process.env.ADMIN_PRIVATE_KEY] : []
+      accounts: process.env.PRIVATE_KEY ? [process.env.PRIVATE_KEY] : []
     }
   },
   etherscan: {
@@ -316,7 +318,8 @@ sudo systemctl stop redis      # Linux
 - **Full API Docs:** `backend/README.md`
 - **Setup Guide:** `backend/SETUP_GUIDE.md`
 - **Backend Summary:** `BACKEND_SUMMARY.md`
-- **Solidity Standards:** `CLAUDE.md`
+- **Contracts:** `contracts/README.md`
+- **Migration notes:** `ETHEREUM_MIGRATION.md`
 
 ---
 

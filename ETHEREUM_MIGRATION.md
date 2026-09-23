@@ -40,8 +40,8 @@ contracts/
 ```
 backend/
 ├── src/services/
-│   ├── ethereum.service.ts         ✅ NEW - Ethereum integration
-│   └── aptos.service.ts           (Keep for reference, not used)
+│   ├── ethereum.service.ts         Ethereum integration
+│   └── ethereum.helpers.ts         Signers and tx helpers
 └── package.json                    ✅ UPDATED - ethers.js added
 ```
 

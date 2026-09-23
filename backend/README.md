@@ -48,9 +48,11 @@ DATABASE_URL="postgresql://user:password@localhost:5432/travel_lifestyle"
 JWT_SECRET=your-super-secret-jwt-key-change-this-in-production
 
 # Ethereum Configuration
-ETHEREUM_RPC_URL=https://eth-sepolia.g.alchemy.com/v2/YOUR_API_KEY  # Or your preferred RPC
-CONTRACT_ADDRESS=0x...        # Your deployed contract address
-ADMIN_PRIVATE_KEY=0x...       # Admin account private key (keep secure!)
+ETHEREUM_RPC_URL=http://127.0.0.1:8545
+PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
+TRAVEL_CARD_ADDRESS=0x...
+NFTS_ADDRESS=0x...
+POINTS_ADDRESS=0x...
 
 # Redis (if using non-default settings)
 REDIS_HOST=localhost
@@ -91,7 +93,7 @@ npx hardhat run scripts/deploy.ts --network sepolia
 npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
 ```
 
-Update `CONTRACT_ADDRESS` in `.env` with your deployed address.
+Update `TRAVEL_CARD_ADDRESS`, `NFTS_ADDRESS`, and `POINTS_ADDRESS` in `.env` with the deployed addresses.
 
 ## Running the Server
 
@@ -436,7 +438,8 @@ Ensure these are set in production:
 - `REDIS_HOST` / `REDIS_PASSWORD` - Production Redis
 - `JWT_SECRET` - Strong random secret (generate new one!)
 - `ETHEREUM_RPC_URL` - Mainnet RPC endpoint (Infura/Alchemy/etc)
-- `CONTRACT_ADDRESS` - Mainnet contract address
+- `TRAVEL_CARD_ADDRESS`, `NFTS_ADDRESS`, `POINTS_ADDRESS` - Deployed contract addresses
+- `PRIVATE_KEY` - Signer for local Hardhat impersonation fallback / public-net admin account
 - `CORS_ORIGIN` - Production frontend URL
 
 ## Troubleshooting

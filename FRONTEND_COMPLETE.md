@@ -36,7 +36,10 @@ frontend/
 │   │   ├── TransactionsPage.tsx   # Transaction history
 │   │   └── ProfilePage.tsx        # User profile settings
 │   ├── services/
-│   │   └── api.ts                 # Axios API client with auth interceptors
+│   │   ├── api.ts                 # Axios API client with auth interceptors
+│   │   └── wallet.ts              # MetaMask connect and local chain switch
+│   ├── components/
+│   │   └── WalletConnectButton.tsx # Connect MetaMask button
 │   ├── store/
 │   │   └── authStore.ts           # Zustand authentication state
 │   ├── types/
@@ -58,7 +61,7 @@ frontend/
 ## 🎯 Complete Features
 
 ### **1. Authentication System** ✅
-- User registration with Aptos address generation
+- User registration with optional MetaMask Ethereum address
 - Login with JWT token management
 - Automatic token refresh on 401 errors
 - Protected routes with authentication guards
@@ -121,7 +124,7 @@ frontend/
 - Display user statistics
 - Change password functionality
 - Delete account with confirmation
-- Read-only fields (email, username, Aptos address)
+- Read-only fields (email, username, Ethereum address)
 - Character limit for bio (500 chars)
 - Danger zone for account deletion
 - Confirmation modals for destructive actions
@@ -200,7 +203,7 @@ frontend/
 
 ### **RegisterPage** (Public)
 - Email, username, password fields
-- Aptos address input with generator
+- Ethereum address input with MetaMask connect
 - Real-time validation
 - Error handling
 - Link to login
@@ -221,7 +224,7 @@ frontend/
 **With Card State:**
 - Gradient card display
 - Fiat and crypto balances
-- Aptos address display
+- Ethereum address display
 - Load funds button + modal
 - Convert to crypto button + modal
 - Recent transactions placeholder
@@ -269,7 +272,7 @@ frontend/
 - Transaction table with:
   - Type column
   - Status with icon
-  - Amount in APT
+  - Amount in ETH / points
   - Date and time
   - Transaction hash
 - Pagination controls
@@ -281,7 +284,7 @@ frontend/
   - First/Last name
   - Email (read-only)
   - Username (read-only)
-  - Aptos address (read-only)
+  - Ethereum address (read-only)
   - Bio with character counter
   - Avatar URL
   - Save button
@@ -494,7 +497,8 @@ npm run typecheck
 - [ ] Add sorting options
 
 ### **Phase 2: Advanced Features**
-- [ ] Aptos wallet integration (Petra, Martian)
+- [x] MetaMask wallet connect
+- [ ] Wallet-signed on-chain transactions from the UI
 - [ ] QR code generation for payments
 - [ ] Two-factor authentication
 - [ ] Email verification
@@ -533,9 +537,9 @@ npm run typecheck
 
 ## 🐛 Known Limitations
 
-1. **Demo Mode**: Currently uses mock Aptos addresses
+1. **Wallet connect only**: MetaMask supplies the address; on-chain writes still go through the backend on Hardhat
 2. **No Image Upload**: NFT images require external URLs
-3. **Limited Wallet Support**: No actual wallet connection yet
+3. **Hardhat local network**: Preview/iframe environments cannot open MetaMask; open the app in a normal tab
 4. **No Real-time Updates**: Requires manual refresh
 5. **Basic Error Handling**: Could be more granular
 

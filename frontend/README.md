@@ -12,7 +12,7 @@ Modern React frontend application for the Travel & Lifestyle blockchain platform
 - **Axios** - HTTP client
 - **React Hot Toast** - Notifications
 - **React Icons** - Icon library
-- **Aptos SDK** - Blockchain integration
+- **ethers.js** - Ethereum / MetaMask integration
 
 ## Project Structure
 
@@ -107,10 +107,13 @@ cp .env.example .env
 
 2. Edit `.env`:
 ```env
-VITE_API_URL=http://localhost:3001/api/v1
-VITE_APTOS_NETWORK=testnet
-VITE_APTOS_NODE_URL=https://fullnode.testnet.aptoslabs.com/v1
-VITE_APTOS_MODULE_ADDRESS=0x...  # Your deployed contract address
+VITE_API_URL=/api/v1
+VITE_ETHEREUM_NETWORK=localhost
+VITE_ETHEREUM_RPC_URL=http://127.0.0.1:8545
+VITE_CHAIN_ID=31337
+VITE_TRAVEL_CARD_ADDRESS=0x5FbDB2315678afecb367f032d93F642f64180aa3
+VITE_NFTS_ADDRESS=0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512
+VITE_POINTS_ADDRESS=0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0
 ```
 
 ### Development
@@ -237,10 +240,13 @@ function Component() {
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `VITE_API_URL` | Backend API URL | `http://localhost:3001/api/v1` |
-| `VITE_APTOS_NETWORK` | Aptos network | `testnet` |
-| `VITE_APTOS_NODE_URL` | Aptos node URL | Testnet URL |
-| `VITE_APTOS_MODULE_ADDRESS` | Contract address | Required |
+| `VITE_API_URL` | Backend API prefix (proxied by Vite) | `/api/v1` |
+| `VITE_ETHEREUM_NETWORK` | Ethereum network | `localhost` |
+| `VITE_ETHEREUM_RPC_URL` | JSON-RPC URL | `http://127.0.0.1:8545` |
+| `VITE_CHAIN_ID` | Chain ID | `31337` (Hardhat) |
+| `VITE_TRAVEL_CARD_ADDRESS` | DigitalTravelCard address | After deploy |
+| `VITE_NFTS_ADDRESS` | ExperienceNFTs address | After deploy |
+| `VITE_POINTS_ADDRESS` | TravelPointsExchange address | After deploy |
 
 ## Deployment
 
@@ -331,7 +337,7 @@ npm install
 
 ### Wallet Connection Issues
 
-- Ensure Aptos wallet extension is installed
+- Ensure MetaMask is installed and unlocked (open the app in a normal tab, not an iframe)
 - Check network configuration
 - Verify contract address
 
@@ -355,14 +361,11 @@ For issues or questions:
 
 ---
 
-**Status:** ✅ Frontend framework complete, ready for component implementation
+**Status:** Frontend pages are implemented. MetaMask connect is available on register.
 
 **Next Steps:**
-1. Implement remaining page components
-2. Add wallet integration (Petra, Martian)
-3. Complete NFT marketplace UI
-4. Add real-time updates
-5. Implement image upload for NFTs
-6. Add animations and transitions
-7. Write unit tests
-8. Deploy to production
+1. Client-signed on-chain transactions from the UI
+2. IPFS image upload for NFTs
+3. Real-time updates
+4. Frontend unit and E2E tests
+5. Deploy to production

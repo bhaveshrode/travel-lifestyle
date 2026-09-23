@@ -9,7 +9,7 @@
 - **Framework**: Express.js
 - **Database**: PostgreSQL with Prisma ORM
 - **Cache**: Redis for performance optimization
-- **Blockchain**: Aptos TypeScript SDK
+- **Blockchain**: ethers.js v6 (Ethereum / Hardhat)
 - **Authentication**: JWT with refresh tokens
 - **Security**: Helmet, CORS, Rate Limiting, bcrypt
 
@@ -35,7 +35,7 @@ backend/
 │   │
 │   ├── services/            # Business logic
 │   │   ├── auth.service.ts  # Authentication service
-│   │   └── aptos.service.ts # Aptos blockchain interactions
+│   │   └── ethereum.service.ts # Ethereum blockchain interactions
 │   │
 │   └── server.ts            # Express server entry point
 │
@@ -73,8 +73,8 @@ backend/
 - ✅ **Transaction** model - Blockchain transaction history
 - ✅ **RefreshToken** model - JWT refresh token management
 
-### **3. Aptos Blockchain Integration**
-- ✅ Complete Aptos SDK setup
+### **3. Ethereum Blockchain Integration**
+- ✅ ethers.js provider, Hardhat impersonation for local writes
 - ✅ **Travel Card Functions**:
    - Create card
    - Load funds
@@ -181,24 +181,24 @@ Server runs at: **http://localhost:3001**
 ## 📊 Database Schema
 
 ### **Users Table**
-- id, email, username, password_hash, aptos_address
+- id, email, username, password_hash, ethereum_address
 - Profile: firstName, lastName, avatar, bio
 - Status: isActive, isVerified
 - Timestamps: createdAt, updatedAt, lastLoginAt
 
 ### **TravelCard Table**
-- id, userId, aptosAddress
+- id, userId, ethereumAddress
 - balance, cryptoBalance, currency
 - isActive, lastSyncAt
 
 ### **NFT Table**
-- id, userId, aptosAddress, nftId
+- id, userId, ethereumAddress, nftId
 - description, price, imageUrl, metadataUrl
 - category, location
 - isListed, isPendingTransfer, pendingTo
 
 ### **PointsAccount Table**
-- id, userId, aptosAddress
+- id, userId, ethereumAddress
 - points, cryptoValue
 - lastSyncAt
 
@@ -236,7 +236,7 @@ curl -X POST http://localhost:3001/api/v1/auth/register \
     "email": "user@example.com",
     "username": "johndoe",
     "password": "securePassword123",
-    "aptosAddress": "0x1234..."
+    "ethereumAddress": "0x1234..."
   }'
 ```
 
@@ -249,7 +249,7 @@ curl -X POST http://localhost:3001/api/v1/auth/register \
       "id": "uuid",
       "email": "user@example.com",
       "username": "johndoe",
-      "aptosAddress": "0x1234..."
+      "ethereumAddress": "0x1234..."
     },
     "accessToken": "eyJhbGciOiJI...",
     "refreshToken": "eyJhbGciOiJI..."
@@ -299,8 +299,8 @@ Before running, you **must** configure:
 
 1. **Database URL** - PostgreSQL connection string
 2. **JWT Secret** - Strong random secret (generate with crypto)
-3. **Aptos Module Address** - Your deployed contract address
-4. **Admin Private Key** - For blockchain transactions
+3. **Contract addresses** - TRAVEL_CARD_ADDRESS, NFTS_ADDRESS, POINTS_ADDRESS
+4. **PRIVATE_KEY** - Hardhat/local signer (or a funded account on public nets)
 5. **CORS Origin** - Frontend URL
 
 See `backend/.env.example` for all variables.
@@ -319,7 +319,7 @@ curl http://localhost:3001/api/v1
 # Register
 curl -X POST http://localhost:3001/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","username":"test","password":"test1234","aptosAddress":"0x123"}'
+  -d '{"email":"test@test.com","username":"test","password":"test1234","ethereumAddress":"0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266"}'
 
 # Login
 curl -X POST http://localhost:3001/api/v1/auth/login \
@@ -396,7 +396,7 @@ npm run db:studio
 ## 📦 Dependencies Installed
 
 **Production:**
-- @aptos-labs/ts-sdk - Aptos blockchain
+- ethers - Ethereum JSON-RPC and contract calls
 - @prisma/client - Database ORM
 - express - Web framework
 - bcryptjs - Password hashing
@@ -419,16 +419,14 @@ npm run db:studio
 
 ## 🎯 Next Steps
 
-1. **Deploy Smart Contracts** to Aptos testnet
-2. **Configure .env** with your values
-3. **Run Database Migrations**: `npm run db:migrate`
-4. **Start Backend**: `npm run dev`
-5. **Test Endpoints** with curl or Postman
-6. **Build Frontend** to connect to this API
-7. **Add More Endpoints** (NFTs, Points, Transactions)
-8. **Write Tests** for all endpoints
-9. **Set up CI/CD** with GitHub Actions
-10. **Deploy to Production** (Heroku, Railway, etc.)
+1. Deploy Solidity contracts to Hardhat localhost or Sepolia
+2. Configure `.env` with RPC URL and contract addresses
+3. Apply schema: `npx prisma db push`
+4. Start backend: `npm run dev`
+5. Start frontend: `cd frontend && npm run dev`
+6. Run tests: `cd contracts && npm test` and `cd backend && npm test`
+7. Set up CI/CD with GitHub Actions
+8. Deploy to production
 
 ---
 
