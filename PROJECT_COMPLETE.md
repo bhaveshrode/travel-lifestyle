@@ -462,8 +462,9 @@ GET    /api/v1/transactions/export
 - [ ] Admin dashboard
 
 ### **Phase 4: Testing**
-- [ ] Unit tests (95%+ coverage)
-- [ ] Integration tests
+- [x] Smart contract tests (Hardhat)
+- [x] Backend API tests (Jest + Supertest)
+- [ ] Frontend unit tests
 - [ ] E2E tests (Playwright)
 - [ ] Load testing
 - [ ] Security audits

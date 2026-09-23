@@ -155,8 +155,14 @@ After deployment, contract addresses will be saved in:
 
 ### Run All Tests
 ```bash
-npm run test
+npm test
 ```
+
+Suites in `test/`:
+
+- `DigitalTravelCard.test.js` - create, load, convert, withdraw, pause
+- `ExperienceNFTs.test.js` - mint, list, purchase, two-step transfer
+- `TravelPointsExchange.test.js` - accounts, add, swap, admin rates
 
 ### Generate Coverage Report
 ```bash

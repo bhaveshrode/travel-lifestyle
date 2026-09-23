@@ -302,12 +302,12 @@ sudo systemctl stop redis      # Linux
 
 ## Next Steps
 
-1. ✅ Backend running - **YOU ARE HERE**
-2. 📱 Build frontend (React/Vue/Next.js)
-3. 🎨 Add NFT endpoints
-4. 🎯 Add Points Exchange endpoints
-5. 🧪 Write tests
-6. 🚀 Deploy to production
+1. Backend running
+2. Frontend running (`cd frontend && npm run dev`)
+3. Contract tests (`cd contracts && npm test`)
+4. Backend tests (`cd backend && npm test`)
+5. Frontend tests (not added yet)
+6. Deploy to production
 
 ---
 

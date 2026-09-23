@@ -398,9 +398,20 @@ npm run format
 
 ## Testing
 
+Backend route tests use Jest and Supertest with mocked Prisma, Redis, and Ethereum services.
+
 ```bash
 npm test
 ```
+
+Coverage includes:
+
+- Auth: register, login, refresh, logout, validation
+- Travel cards: create, get, load funds, convert to crypto
+- NFTs: mint, list, offer/claim/cancel, purchase, marketplace
+- Points: create account, add, swap, history, stats, exchange rate
+
+The Express app lives in `src/app.ts` so tests can import it without starting a listener.
 
 ## Deployment
 

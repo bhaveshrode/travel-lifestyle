@@ -129,7 +129,13 @@ npm run compile
 
 ### Run Tests
 ```bash
-npm run test
+# Smart contracts (Hardhat)
+cd contracts
+npm test
+
+# Backend API (Jest)
+cd ../backend
+npm test
 ```
 
 ### Deploy to Testnet
